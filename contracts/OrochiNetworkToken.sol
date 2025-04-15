@@ -23,6 +23,12 @@ contract OrochiNetworkToken is ERC20, Ownable {
      * Owner
      ********************************************************/
 
+    /**
+     * Only allow owner to mint
+     * @dev Owner will be OrochiNetwork vesting
+     * @param to Receiver address
+     * @param amount Amount of tokens to mint
+     */
     function mint(address to, uint256 amount) public onlyOwner returns (bool) {
         _mint(to, amount);
         return true;

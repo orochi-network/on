@@ -20,6 +20,9 @@ error TGEAlreadyStarted();
  * @title Orochi Network Token
  */
 contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
+    /**
+     * @dev Struct to define vesting term
+     */
     struct VestingTerm {
         address beneficiary;
         uint64 start;
@@ -29,6 +32,9 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
         uint256 total;
     }
 
+    /**
+     * @dev Struct to store vesting schedule
+     */
     struct VestingSchedule {
         uint64 start;
         uint64 end;
@@ -39,28 +45,45 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
         uint256 total;
     }
 
+    // Token contract address
     OrochiNetworkToken token;
 
+    // Schedule of vesting
     mapping(address => VestingSchedule) private schedule;
 
+    // Airdrop map for airdrop recipients
     mapping(address => uint256) private airdrop;
 
+    // Is TGE started or not
     bool private isPostTGE = false;
 
+    // Event emitted when token is claimed
     event TokenClaimed(address account, uint64 milestone, uint256 amount);
+
+    // Event emitted when token is unlocked at TGE
     event UnlockAtTGE(address account, uint256 amount);
+
+    // Event emitted when airdrop is claimed
     event AirdropClaim(address account, uint256 amount);
+
+    // Event emitted when TGE is started
     event TGEStarted();
 
+    /**
+     * @dev Modifier to make sure that the TGE is started
+     */
     modifier onlyPostTGE() {
-        if (isPostTGE) {
+        if (!isPostTGE) {
             revert TGENotStarted();
         }
         _;
     }
 
+    /**
+     * @dev Modifier to make sure that the TGE is not started yet
+     */
     modifier onlyPreTGE() {
-        if (!isPostTGE) {
+        if (isPostTGE) {
             revert TGEAlreadyStarted();
         }
         _;
@@ -70,6 +93,10 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
      * Constructor
      ********************************************************/
 
+    /**
+     * Constructor
+     * @param tokenAddress The address of the token contract
+     */
     constructor(address tokenAddress) {
         token = OrochiNetworkToken(tokenAddress);
     }
@@ -77,10 +104,19 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
     /*******************************************************
      * External Post TGE
      ********************************************************/
+
+    /**
+     * Claim tokens for the sender
+     * @dev Only callable after TGE
+     */
     function claim() external nonReentrant onlyPostTGE {
         _claim(msg.sender);
     }
 
+    /**
+     * Claim tokens for the user from airdrop
+     * @dev Only callable after TGE
+     */
     function claimAirdrop() external nonReentrant onlyPostTGE {
         if (airdrop[msg.sender] > 0) {
             if (!token.mint(msg.sender, airdrop[msg.sender])) {
@@ -98,13 +134,19 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
     /**
      * Starts the TGE and sets isPostTGE to true.
      * This mean some pre TGE action will be locked
-     * @dev Only callable by the owner before pre-TGE. Emits TGEStarted event.
+     * @dev Only callable by the owner before TGE. Emits TGEStarted event.
      */
     function startTGE() external nonReentrant onlyOwner onlyPreTGE {
         isPostTGE = true;
         emit TGEStarted();
     }
 
+    /**
+     * Add users to the airdrop pool
+     * @dev Only callable by the owner before TGE. Emits TGEStarted event.
+     * @param beneficaries Array of beneficiaries
+     * @param amounts Array of amounts
+     */
     function addUserToAirdrop(
         address[] memory beneficaries,
         uint256[] memory amounts
@@ -120,26 +162,58 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
         }
     }
 
+    /**
+     * Add a vesting term to the contract
+     * @dev Only callable by the owner before TGE
+     * @param term VestingTerm struct
+     */
     function addVestingTerm(
         VestingTerm calldata term
     ) external onlyOwner nonReentrant onlyPreTGE {
-        uint256 remaining = term.total - term.unlocked;
-        uint256 milestoneTotal = (term.start - term.end) / term.duration;
+        // Unlock imediatly if the total amount is already unlocked
+        if (term.total == term.unlocked && term.unlocked > 0) {
+            if (!token.mint(term.beneficiary, term.unlocked)) {
+                revert UnableToDistributeToken(term.beneficiary, term.unlocked);
+            }
 
+            uint64 currentTimestamp = uint64(block.timestamp);
+
+            schedule[term.beneficiary] = VestingSchedule({
+                start: currentTimestamp,
+                end: currentTimestamp,
+                duration: 0,
+                milestonClaimed: 0,
+                milestoneRelease: 0,
+                remaining: 0,
+                total: term.total
+            });
+
+            emit UnlockAtTGE(term.beneficiary, term.unlocked);
+            // Prevent program processing further
+            return;
+        }
+
+        // Filter invalid terms
         if (
+            term.total <= term.unlocked ||
             term.start < block.timestamp ||
-            term.end < (term.start + term.duration) ||
-            remaining <= 0 ||
-            milestoneTotal <= 0
+            term.end < (term.start + term.duration)
         ) {
             revert InvalidVestingTerm();
         }
 
-        if (term.unlocked > 0 && !token.mint(term.beneficiary, term.unlocked)) {
-            revert UnableToDistributeToken(term.beneficiary, term.unlocked);
+        uint256 remaining = term.total - term.unlocked;
+        uint256 milestoneTotal = (term.end - term.start) / term.duration;
+
+        if (milestoneTotal <= 0) {
+            revert InvalidVestingTerm();
         }
 
+        // Calculate the amount to unlock at TGE
         if (term.unlocked > 0) {
+            if (!token.mint(term.beneficiary, term.unlocked)) {
+                revert UnableToDistributeToken(term.beneficiary, term.unlocked);
+            }
             emit UnlockAtTGE(term.beneficiary, term.unlocked);
         }
 
@@ -155,9 +229,14 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
     }
 
     /*******************************************************
-     * Owner TGE
+     * Owner post TGE
      ********************************************************/
 
+    /**
+     * Helper to claim tokens for multiple accounts at once
+     * @dev Only callable by the owner after TGE
+     * @param accounts Array of addresses to claim tokens for
+     */
     function claimHelper(
         address[] memory accounts
     ) external nonReentrant onlyOwner onlyPostTGE {
@@ -170,6 +249,10 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
      * Internal
      ********************************************************/
 
+    /**
+     * Claim tokens for a single account
+     * @param account Address of the account to claim tokens for
+     */
     function _claim(address account) internal {
         VestingSchedule memory vestingSchedule = schedule[account];
         // Check if the vesting has started
@@ -212,19 +295,34 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
      * External View
      ********************************************************/
 
+    /**
+     * Claimable token balance of the given account
+     * @param account Address of the account
+     */
     function balance(address account) external view returns (uint256) {
         (, uint256 amount) = _balance(account);
         return amount;
     }
 
+    /**
+     * Balance of airdrop for the given account
+     * @param account Address of the account
+     */
     function balanceAirdrop(address account) external view returns (uint256) {
         return airdrop[account];
     }
 
+    /**
+     * Is TGE started or not
+     */
     function isTGEStarted() external view returns (bool) {
         return isPostTGE;
     }
 
+    /**
+     * Get vesting schedule of the given account
+     * @param account Address of the account
+     */
     function getVestingSchedule(
         address account
     ) external view returns (VestingSchedule memory) {
@@ -234,6 +332,13 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
     /*******************************************************
      * Internal View
      ********************************************************/
+
+    /**
+     * Calculate balance of the given account and milestone
+     * @param account Address of the account
+     * @return milestone Claimable milestone
+     * @return amount Claimable amount
+     */
     function _balance(
         address account
     ) internal view returns (uint64 milestone, uint256 amount) {
@@ -242,10 +347,23 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
             return (0, 0);
         }
 
-        milestone =
-            ((uint64(block.timestamp) - vestingSchedule.start) /
-                vestingSchedule.duration) -
-            vestingSchedule.milestonClaimed;
+        // Calculate total milestones
+        uint64 milestoneTotal = (vestingSchedule.end - vestingSchedule.start) /
+            vestingSchedule.duration;
+
+        // If all token is vested then return remaining amount
+        if (block.timestamp > vestingSchedule.end) {
+            return (milestoneTotal, vestingSchedule.remaining);
+        }
+
+        // Milestone can't be greater than total milestones
+        milestone = ((uint64(block.timestamp) - vestingSchedule.start) /
+            vestingSchedule.duration);
+        milestone = milestone >= milestoneTotal ? milestoneTotal : milestone;
+
+        // Calculate claimable milestone
+        milestone = milestone - vestingSchedule.milestonClaimed;
+
         return (milestone, milestone * vestingSchedule.milestoneRelease);
     }
 }
