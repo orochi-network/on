@@ -13,6 +13,7 @@ error InvalidVestingTerm();
 error UnableToDistributeToken(address beneficiary, uint256 amount);
 error UnableToAirdropToken(address beneficiary, uint256 amount);
 error BeneficiaryAmountMismatch(uint256 beneficaries, uint256 amounts);
+error BeneficiaryAlreadyAdded(address account);
 error TGENotStarted();
 error TGEAlreadyStarted();
 
@@ -170,6 +171,10 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
     function addVestingTerm(
         VestingTerm calldata term
     ) external onlyOwner nonReentrant onlyPreTGE {
+        // This schedule isn't empty
+        if (schedule[term.beneficiary].total > 0) {
+            revert BeneficiaryAlreadyAdded(term.beneficiary);
+        }
         // Unlock imediatly if the total amount is already unlocked
         if (term.total == term.unlocked && term.unlocked > 0) {
             if (!token.mint(term.beneficiary, term.unlocked)) {
@@ -271,7 +276,7 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
             revert NoClaimableToken(account, milestone);
         }
 
-        if (amount > vestingSchedule.remaining) {
+        if (amount == 0 || amount > vestingSchedule.remaining) {
             revert InsufficientBalance(
                 account,
                 amount,
