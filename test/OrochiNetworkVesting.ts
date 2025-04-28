@@ -5,11 +5,10 @@ import {
 import { expect } from "chai";
 import hre from "hardhat";
 
-// Top‑level description wrapper
 describe("OrochiNetworkVesting", function () {
-  //--------------------------------------------------------------------------
-  // Fixture helper – unchanged from original file
-  //--------------------------------------------------------------------------
+  // We define a fixture to reuse the same setup in every test.
+  // We use loadFixture to run this setup once, snapshot that state,
+  // and reset Hardhat Network to that snapshot in every test.
   async function deployVestingFixture() {
     const ONE_MONTH_IN_SECS = 30 * 24 * 60 * 60; // 30‑day month in seconds
     const ONE_HOUR = 60 * 60; // 1‑hour offset
