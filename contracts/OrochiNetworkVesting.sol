@@ -12,7 +12,7 @@ error InsufficientBalance(address account, uint256 amount, uint256 remaining);
 error InvalidVestingTerm();
 error UnableToDistributeToken(address beneficiary, uint256 amount);
 error UnableToAirdropToken(address beneficiary, uint256 amount);
-error BeneficiaryAmountMismatch(uint256 beneficaries, uint256 amounts);
+error BeneficiaryAmountMismatch(uint256 beneficaryList, uint256 amountList);
 error BeneficiaryAlreadyAdded(address account);
 error TGENotStarted();
 error TGEAlreadyStarted();
@@ -145,21 +145,21 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
     /**
      * Add users to the airdrop pool
      * @dev Only callable by the owner before TGE. Emits TGEStarted event.
-     * @param beneficaries Array of beneficiaries
-     * @param amounts Array of amounts
+     * @param beneficaryList Array of beneficiaries
+     * @param amountList Array of amountList
      */
     function addUserToAirdrop(
-        address[] memory beneficaries,
-        uint256[] memory amounts
+        address[] memory beneficaryList,
+        uint256[] memory amountList
     ) external nonReentrant onlyOwner onlyPreTGE {
-        if (beneficaries.length != amounts.length) {
+        if (beneficaryList.length != amountList.length) {
             revert BeneficiaryAmountMismatch(
-                beneficaries.length,
-                amounts.length
+                beneficaryList.length,
+                amountList.length
             );
         }
-        for (uint256 i = 0; i < beneficaries.length; i += 1) {
-            airdrop[beneficaries[i]] += amounts[i];
+        for (uint256 i = 0; i < beneficaryList.length; i += 1) {
+            airdrop[beneficaryList[i]] += amountList[i];
         }
     }
 
