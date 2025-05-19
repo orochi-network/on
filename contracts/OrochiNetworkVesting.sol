@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./OrochiNetworkToken.sol";
+import "./IOrochiNetworkToken.sol";
 
 error UnableToRelease(address account, uint64 milestone, uint256 amount);
 error VestingWasNotStarted(address account, uint64 timestamp, uint64 start);
@@ -23,6 +23,7 @@ error TGEAlreadyStarted();
 contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
     /**
      * @dev Struct to define vesting term
+     *
      */
     struct VestingTerm {
         address beneficiary;
@@ -41,13 +42,13 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
         uint64 end;
         uint64 duration;
         uint64 milestonClaimed;
-        uint256 milestoneRelease;
+        uint256 milestoneReleased;
         uint256 remaining;
         uint256 total;
     }
 
     // Token contract address
-    OrochiNetworkToken token;
+    IOrochiNetworkToken token;
 
     // Schedule of vesting
     mapping(address => VestingSchedule) private schedule;
@@ -56,7 +57,7 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
     mapping(address => uint256) private airdrop;
 
     // Is TGE started or not
-    bool private isPostTGE = false;
+    bool private isTGE = false;
 
     // Event emitted when token is claimed
     event TokenClaimed(address account, uint64 milestone, uint256 amount);
@@ -74,7 +75,8 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
      * @dev Modifier to make sure that the TGE is started
      */
     modifier onlyPostTGE() {
-        if (!isPostTGE) {
+        // It's require isTGE to be true to move one
+        if (isTGE == false) {
             revert TGENotStarted();
         }
         _;
@@ -84,7 +86,8 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
      * @dev Modifier to make sure that the TGE is not started yet
      */
     modifier onlyPreTGE() {
-        if (isPostTGE) {
+        // It's require isTGE to be false to move one
+        if (isTGE == true) {
             revert TGEAlreadyStarted();
         }
         _;
@@ -99,7 +102,7 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
      * @param tokenAddress The address of the token contract
      */
     constructor(address tokenAddress) {
-        token = OrochiNetworkToken(tokenAddress);
+        token = IOrochiNetworkToken(tokenAddress);
     }
 
     /*******************************************************
@@ -133,12 +136,12 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
      ********************************************************/
 
     /**
-     * Starts the TGE and sets isPostTGE to true.
+     * Starts the TGE and sets isTGE to true.
      * This mean some pre TGE action will be locked
      * @dev Only callable by the owner before TGE. Emits TGEStarted event.
      */
     function startTGE() external nonReentrant onlyOwner onlyPreTGE {
-        isPostTGE = true;
+        isTGE = true;
         emit TGEStarted();
     }
 
@@ -188,7 +191,7 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
                 end: currentTimestamp,
                 duration: 0,
                 milestonClaimed: 0,
-                milestoneRelease: 0,
+                milestoneReleased: 0,
                 remaining: 0,
                 total: term.total
             });
@@ -227,7 +230,7 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
             end: term.end,
             duration: term.duration,
             milestonClaimed: 0,
-            milestoneRelease: remaining / milestoneTotal,
+            milestoneReleased: remaining / milestoneTotal,
             remaining: remaining,
             total: term.total
         });
@@ -321,7 +324,7 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
      * Is TGE started or not
      */
     function isTGEStarted() external view returns (bool) {
-        return isPostTGE;
+        return isTGE;
     }
 
     /**
@@ -369,6 +372,6 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
         // Calculate claimable milestone
         milestone = milestone - vestingSchedule.milestonClaimed;
 
-        return (milestone, milestone * vestingSchedule.milestoneRelease);
+        return (milestone, milestone * vestingSchedule.milestoneReleased);
     }
 }
