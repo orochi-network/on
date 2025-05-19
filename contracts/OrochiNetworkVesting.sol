@@ -10,6 +10,7 @@ error VestingWasNotStarted(address account, uint64 timestamp, uint64 start);
 error NoClaimableToken(address account, uint64 milestone);
 error InsufficientBalance(address account, uint256 amount, uint256 remaining);
 error InvalidVestingTerm();
+error InvalidVestingSchedule(address account);
 error UnableToDistributeToken(address beneficiary, uint256 amount);
 error UnableToAirdropToken(address beneficiary, uint256 amount);
 error BeneficiaryAmountMismatch(uint256 beneficaryList, uint256 amountList);
@@ -42,8 +43,9 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
         uint64 end;
         uint64 duration;
         uint64 milestonClaimed;
-        uint256 milestoneReleased;
-        uint256 remaining;
+        uint256 milestoneReleaseAmount;
+        uint256 unlocked;
+        uint256 totalClaimed;
         uint256 total;
     }
 
@@ -178,21 +180,20 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
         if (schedule[term.beneficiary].total > 0) {
             revert BeneficiaryAlreadyAdded(term.beneficiary);
         }
+
         // Unlock imediatly if the total amount is already unlocked
         if (term.total == term.unlocked && term.unlocked > 0) {
-            if (!token.mint(term.beneficiary, term.unlocked)) {
-                revert UnableToDistributeToken(term.beneficiary, term.unlocked);
-            }
-
             uint64 currentTimestamp = uint64(block.timestamp);
 
+            // This schedule vested immediately
             schedule[term.beneficiary] = VestingSchedule({
                 start: currentTimestamp,
                 end: currentTimestamp,
                 duration: 0,
                 milestonClaimed: 0,
-                milestoneReleased: 0,
-                remaining: 0,
+                milestoneReleaseAmount: 0,
+                unlocked: term.total,
+                totalClaimed: 0,
                 total: term.total
             });
 
@@ -203,37 +204,33 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
 
         // Filter invalid terms
         if (
-            term.total <= term.unlocked ||
-            term.start < block.timestamp ||
-            term.end < (term.start + term.duration)
+            term.total > term.unlocked &&
+            term.start > block.timestamp &&
+            term.duration > 0 &&
+            term.end > (term.start + term.duration)
         ) {
-            revert InvalidVestingTerm();
-        }
+            uint256 remaining = term.total - term.unlocked;
+            uint256 milestoneTotal = (term.end - term.start) / term.duration;
+            if (milestoneTotal > 0) {
+                // Calculate the amount to unlock at TGE
+                if (term.unlocked > 0) {
+                    emit UnlockAtTGE(term.beneficiary, term.unlocked);
+                }
 
-        uint256 remaining = term.total - term.unlocked;
-        uint256 milestoneTotal = (term.end - term.start) / term.duration;
-
-        if (milestoneTotal <= 0) {
-            revert InvalidVestingTerm();
-        }
-
-        // Calculate the amount to unlock at TGE
-        if (term.unlocked > 0) {
-            if (!token.mint(term.beneficiary, term.unlocked)) {
-                revert UnableToDistributeToken(term.beneficiary, term.unlocked);
+                schedule[term.beneficiary] = VestingSchedule({
+                    start: term.start,
+                    end: term.end,
+                    duration: term.duration,
+                    milestonClaimed: 0,
+                    milestoneReleaseAmount: remaining / milestoneTotal,
+                    unlocked: term.unlocked,
+                    totalClaimed: 0,
+                    total: term.total
+                });
+                return;
             }
-            emit UnlockAtTGE(term.beneficiary, term.unlocked);
         }
-
-        schedule[term.beneficiary] = VestingSchedule({
-            start: term.start,
-            end: term.end,
-            duration: term.duration,
-            milestonClaimed: 0,
-            milestoneReleased: remaining / milestoneTotal,
-            remaining: remaining,
-            total: term.total
-        });
+        revert InvalidVestingTerm();
     }
 
     /*******************************************************
@@ -263,6 +260,12 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
      */
     function _claim(address account) internal {
         VestingSchedule memory vestingSchedule = schedule[account];
+
+        // If there is no token then vesting schedule is invalid
+        if (vestingSchedule.total == 0) {
+            revert InvalidVestingSchedule(account);
+        }
+
         // Check if the vesting has started
         if (block.timestamp < vestingSchedule.start) {
             revert VestingWasNotStarted(
@@ -275,21 +278,24 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
         (uint64 milestone, uint256 amount) = _balance(account);
 
         // Check if there is any claimable token left
-        if (milestone == 0) {
+        if (vestingSchedule.totalClaimed > 0 && milestone == 0) {
             revert NoClaimableToken(account, milestone);
         }
 
-        if (amount == 0 || amount > vestingSchedule.remaining) {
+        if (
+            amount == 0 ||
+            amount + vestingSchedule.totalClaimed > vestingSchedule.total
+        ) {
             revert InsufficientBalance(
                 account,
                 amount,
-                vestingSchedule.remaining
+                vestingSchedule.total - vestingSchedule.totalClaimed
             );
         }
 
         // Update the vesting schedule
-        vestingSchedule.milestonClaimed = milestone;
-        vestingSchedule.remaining -= amount;
+        vestingSchedule.milestonClaimed += milestone;
+        vestingSchedule.totalClaimed += amount;
         schedule[account] = vestingSchedule;
 
         if (!token.mint(account, amount)) {
@@ -355,13 +361,24 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
             return (0, 0);
         }
 
+        // A specificed case, all token vested immediately
+        if (vestingSchedule.unlocked == vestingSchedule.total) {
+            return
+                vestingSchedule.totalClaimed > 0
+                    ? (0, 0)
+                    : (0, vestingSchedule.unlocked);
+        }
+
         // Calculate total milestones
         uint64 milestoneTotal = (vestingSchedule.end - vestingSchedule.start) /
             vestingSchedule.duration;
 
         // If all token is vested then return remaining amount
         if (block.timestamp > vestingSchedule.end) {
-            return (milestoneTotal, vestingSchedule.remaining);
+            return (
+                milestoneTotal,
+                vestingSchedule.total - vestingSchedule.totalClaimed
+            );
         }
 
         // Milestone can't be greater than total milestones
@@ -372,6 +389,14 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
         // Calculate claimable milestone
         milestone = milestone - vestingSchedule.milestonClaimed;
 
-        return (milestone, milestone * vestingSchedule.milestoneReleased);
+        // If it's first claim then we include the unlocked TGE amount
+        if (vestingSchedule.totalClaimed == 0 && vestingSchedule.unlocked > 0) {
+            return (
+                milestone,
+                (milestone * vestingSchedule.milestoneReleaseAmount) +
+                    vestingSchedule.unlocked
+            );
+        }
+        return (milestone, milestone * vestingSchedule.milestoneReleaseAmount);
     }
 }

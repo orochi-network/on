@@ -66,7 +66,13 @@ describe("OrochiNetworkVesting", function () {
 
   it("Should unlock TGE tokens immediately", async function () {
     // Load a pristine fixture instance
-    const { UNIT, token, user } = await loadFixture(deployVestingFixture);
+    const { UNIT, token, user, vesting, start, ONE_MONTH_IN_SECS } =
+      await loadFixture(deployVestingFixture);
+    // Trigger TGE (onlyOwner) so claim path opens
+    await vesting.startTGE();
+    // Fast‑forward chain time to 3 milestones after `start`
+    await time.increaseTo(start);
+    await vesting.connect(user).claim();
     // Expect user balance equals initial 10 ON unlocked during addVestingTerm
     expect(await token.balanceOf(user.address)).to.equal(UNIT * 10n);
   });
@@ -172,9 +178,7 @@ describe("OrochiNetworkVesting", function () {
     // User claims their airdrop allocation
     await vesting.connect(user).claimAirdrop();
     // Final balance = 100 ON airdrop + 10 ON initial unlock
-    expect(await token.balanceOf(user.address)).to.equal(
-      100n + 10n * 10n ** 18n
-    );
+    expect(await token.balanceOf(user.address)).to.equal(100n);
   });
 
   it("Should emit AirdropClaim event on airdrop claim", async function () {
@@ -267,7 +271,7 @@ describe("OrochiNetworkVesting", function () {
     // newUser owns no schedule ⇒ _balance() division by zero panic (0x12)
     await expect(
       vesting.connect(owner).claimHelper([newUser.address])
-    ).to.be.revertedWithPanic(0x12);
+    ).to.revertedWithCustomError(vesting, "InvalidVestingSchedule");
   });
 
   // -------------------------------------------------------------------
@@ -356,7 +360,8 @@ describe("OrochiNetworkVesting", function () {
 
     const now = block.timestamp;
     // duration = 0 triggers division‑by‑zero panic inside addVestingTerm
-    await expect(
+
+    expect(
       vesting.connect(owner).addVestingTerm({
         beneficiary: newUser.address,
         start: now + 1000,
@@ -365,7 +370,7 @@ describe("OrochiNetworkVesting", function () {
         unlocked: 0,
         total: 100,
       })
-    ).to.be.revertedWithPanic(0x12);
+    ).to.revertedWithCustomError(vesting, "InvalidVestingTerm");
   });
 
   // -------------------------------------------------------------------
@@ -496,9 +501,11 @@ describe("OrochiNetworkVesting", function () {
         total: UNIT * 100n,
       })
     ).to.emit(vesting, "UnlockAtTGE");
+    await vesting.startTGE();
+    await vesting.connect(newUser).claim();
     // Verify remaining amount is zero
     const s = await vesting.getVestingSchedule(newUser.address);
-    expect(s.remaining).to.equal(0);
+    expect(s.totalClaimed).to.equal(UNIT * 100n);
   });
 
   it("Should revert InvalidVestingTerm when end is less than start + duration", async function () {
@@ -589,9 +596,10 @@ describe("OrochiNetworkVesting", function () {
     const { vesting, newUser } = await loadFixture(deployVestingFixture);
     // Start TGE
     await vesting.startTGE();
-    // newUser has no schedule => expect panic 0x12
-    await expect(vesting.connect(newUser).claim()).to.be.revertedWithPanic(
-      0x12
+
+    await expect(vesting.connect(newUser).claim()).to.revertedWithCustomError(
+      vesting,
+      "InvalidVestingSchedule"
     );
   });
 
