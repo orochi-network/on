@@ -40,27 +40,31 @@ describe("OrochiNetworkVesting", function () {
     const end = start + duration * 18; // Vesting spans 18 m
     const unlocked = UNIT * 10n; // 10 ON unlocked TGE
     const total = UNIT * 1000n; // Total grant = 1000 ON
+    const milestoneRelease = (total - unlocked) / 18n;
 
-    // Register vesting term for primary test user
-    await vesting.addVestingTerm({
+    const vestingTerm = {
       beneficiary: user.address,
       start,
-      end,
       duration,
+      end,
       unlocked,
       total,
-    });
+    };
+
+    // Register vesting term for primary test user
+    await vesting.addVestingTerm(vestingTerm);
 
     return {
       UNIT,
       ONE_MONTH_IN_SECS,
-      start,
       token,
       vesting,
       owner,
       user,
       newUser,
       tgeTime,
+      vestingTerm,
+      milestoneRelease,
     };
   }
 
@@ -70,12 +74,12 @@ describe("OrochiNetworkVesting", function () {
 
   it("Should unlock TGE tokens immediately", async function () {
     // Load a pristine fixture instance
-    const { UNIT, token, user, vesting, start } = await loadFixture(
+    const { UNIT, token, user, vesting, vestingTerm } = await loadFixture(
       deployVestingFixture
     );
 
     // Fast‑forward chain time to 3 milestones after `start`
-    await time.increaseTo(start);
+    await time.increaseTo(vestingTerm.start);
     await vesting.connect(user).claim();
     // Expect user balance equals initial 10 ON unlocked during addVestingTerm
     expect(await token.balanceOf(user.address)).to.equal(UNIT * 10n);
@@ -83,13 +87,10 @@ describe("OrochiNetworkVesting", function () {
 
   it("Should allow claim after TGE and 3 milestones", async function () {
     // Unpack commonly‑used references
-    const { UNIT, ONE_MONTH_IN_SECS, start, token, vesting, user, tgeTime } =
+    const { UNIT, ONE_MONTH_IN_SECS, vestingTerm, token, vesting, user } =
       await loadFixture(deployVestingFixture);
-
-    // Trigger TGE (onlyOwner) so claim path opens
-    await time.increaseTo(tgeTime);
     // Fast‑forward chain time to 3 milestones after `start`
-    await time.increaseTo(start + ONE_MONTH_IN_SECS * 3);
+    await time.increaseTo(vestingTerm.start + ONE_MONTH_IN_SECS * 3);
     // User claims vested tokens
     await vesting.connect(user).claim();
     // Expect balance: 10 ON (TGE) + 3×55 ON per milestone = 175 ON
@@ -100,16 +101,14 @@ describe("OrochiNetworkVesting", function () {
 
   it("Should revert claim with no claimable milestones", async function () {
     // Prepare fixture
-    const { ONE_MONTH_IN_SECS, start, vesting, user, tgeTime } =
+    const { ONE_MONTH_IN_SECS, vestingTerm, vesting, user, tgeTime } =
       await loadFixture(deployVestingFixture);
-    // Start TGE so claiming is permitted
-    await time.increaseTo(tgeTime);
     // Skip to very end of vesting (all milestones matured)
-    await time.increaseTo(start + ONE_MONTH_IN_SECS * 18);
+    await time.increaseTo(vestingTerm.start + ONE_MONTH_IN_SECS * 18);
     // First claim should consume remaining allocation
     await vesting.connect(user).claim();
     // Move to next milestone (which no longer exists)
-    await time.increaseTo(start + ONE_MONTH_IN_SECS * 19);
+    await time.increaseTo(vestingTerm.start + ONE_MONTH_IN_SECS * 19);
     // Second claim must revert with InsufficientBalance (remaining = 0)
     await expect(vesting.connect(user).claim()).to.be.revertedWithCustomError(
       vesting,
@@ -119,12 +118,10 @@ describe("OrochiNetworkVesting", function () {
 
   it("Should emit TokenClaimed event on claim", async function () {
     // Fixture + aliases
-    const { vesting, user, start, ONE_MONTH_IN_SECS, tgeTime } =
+    const { vesting, user, vestingTerm, ONE_MONTH_IN_SECS, tgeTime } =
       await loadFixture(deployVestingFixture);
-    // Open claim period
-    await time.increaseTo(tgeTime);
     // Travel one milestone ahead
-    await time.increaseTo(start + ONE_MONTH_IN_SECS);
+    await time.increaseTo(vestingTerm.start + ONE_MONTH_IN_SECS);
     // Expect TokenClaimed emitted once claim executes
     await expect(vesting.connect(user).claim()).to.emit(
       vesting,
@@ -134,11 +131,11 @@ describe("OrochiNetworkVesting", function () {
 
   it("Should revert if claim called twice with no new milestone", async () => {
     // Provision fixture
-    const { vesting, user, start, ONE_MONTH_IN_SECS } = await loadFixture(
+    const { vesting, user, vestingTerm, ONE_MONTH_IN_SECS } = await loadFixture(
       deployVestingFixture
     );
     // Jump to first milestone
-    await time.increaseTo(start + ONE_MONTH_IN_SECS);
+    await time.increaseTo(vestingTerm.start + ONE_MONTH_IN_SECS);
     // First claim succeeds
     await vesting.connect(user).claim();
     // Immediate second claim (same milestone) must revert NoClaimableToken
@@ -150,12 +147,10 @@ describe("OrochiNetworkVesting", function () {
 
   it("Should claim all remaining tokens after vesting ends", async function () {
     // Fixture extraction
-    const { UNIT, ONE_MONTH_IN_SECS, start, token, vesting, user, tgeTime } =
+    const { UNIT, ONE_MONTH_IN_SECS, vestingTerm, token, vesting, user } =
       await loadFixture(deployVestingFixture);
-    // Enable claim phase
-    await time.increaseTo(tgeTime);
     // Warp to vesting end (18 months)
-    await time.increaseTo(start + ONE_MONTH_IN_SECS * 18);
+    await time.increaseTo(vestingTerm.start + ONE_MONTH_IN_SECS * 18);
     // User claims – expect entire allocation released
     await vesting.connect(user).claim();
     // User should now hold full 1000 ON grant
@@ -173,7 +168,7 @@ describe("OrochiNetworkVesting", function () {
     );
     // Owner assigns 100 tokens as airdrop to `user`
     await vesting.connect(owner).addUserToAirdrop([user.address], [100]);
-    // Initiate TGE
+    // Go to TGE
     await time.increaseTo(tgeTime);
     // User claims their airdrop allocation
     await vesting.connect(user).claimAirdrop();
@@ -242,24 +237,22 @@ describe("OrochiNetworkVesting", function () {
       user,
       newUser,
       ONE_MONTH_IN_SECS,
-      start,
+      vestingTerm,
       tgeTime,
     } = await loadFixture(deployVestingFixture);
 
     // Add a *second* vesting schedule for `newUser`
     await vesting.connect(owner).addVestingTerm({
       beneficiary: newUser.address,
-      start,
-      end: start + ONE_MONTH_IN_SECS * 18,
+      start: vestingTerm.start,
+      end: vestingTerm.start + ONE_MONTH_IN_SECS * 18,
       duration: ONE_MONTH_IN_SECS,
       unlocked: 0n,
       total: UNIT * 1000n,
     });
 
-    // Kick off TGE
-    await time.increaseTo(tgeTime);
     // Advance 2 milestones
-    await time.increaseTo(start + ONE_MONTH_IN_SECS * 2);
+    await time.increaseTo(vestingTerm.start + ONE_MONTH_IN_SECS * 2);
     // Owner triggers batch claim for both users
     await vesting.connect(owner).claimHelper([user.address, newUser.address]);
 
@@ -378,11 +371,10 @@ describe("OrochiNetworkVesting", function () {
 
   it("Should return correct claimable balance", async () => {
     // Acquire state
-    const { vesting, user, start, ONE_MONTH_IN_SECS, tgeTime } =
+    const { vesting, user, vestingTerm, ONE_MONTH_IN_SECS, tgeTime } =
       await loadFixture(deployVestingFixture);
     // Enable TGE + travel 4 milestones ahead
-    await time.increaseTo(tgeTime);
-    await time.increaseTo(start + ONE_MONTH_IN_SECS * 4);
+    await time.increaseTo(vestingTerm.start + ONE_MONTH_IN_SECS * 4);
     // Fetch claimable amount (view function)
     const amount = await vesting.balance(user.address);
     // Expect > 0 (should be 4 milestones worth)
@@ -528,22 +520,21 @@ describe("OrochiNetworkVesting", function () {
 
   it("Should revert InsufficientBalance when per‑milestone release rounds to zero", async function () {
     // Deploy fresh state
-    const { vesting, owner, newUser, ONE_MONTH_IN_SECS, tgeTime, start } =
+    const { vesting, owner, newUser, ONE_MONTH_IN_SECS, tgeTime, vestingTerm } =
       await loadFixture(deployVestingFixture);
 
     // Craft a term with tiny remaining so release = 0 (integer division)
     await vesting.connect(owner).addVestingTerm({
       beneficiary: newUser.address,
-      start: start, // same baseline start
-      end: start + ONE_MONTH_IN_SECS * 18,
+      start: vestingTerm.start, // same baseline start
+      end: vestingTerm.start + ONE_MONTH_IN_SECS * 18,
       duration: ONE_MONTH_IN_SECS,
       unlocked: 0,
       total: 17n, // remaining = 17, milestoneTotal = 18 => release = 0
     });
 
     // Activate TGE & move one milestone ahead
-    await time.increaseTo(tgeTime);
-    await time.increaseTo(start + ONE_MONTH_IN_SECS);
+    await time.increaseTo(vestingTerm.start + ONE_MONTH_IN_SECS);
 
     // newUser attempts claim; _balance returns milestone=1, amount=0 ⇒ InsufficientBalance
     await expect(
@@ -651,14 +642,63 @@ describe("OrochiNetworkVesting", function () {
     ).to.be.revertedWithCustomError(vesting, "InvalidVestingTerm");
   });
 
-  it("Should correctly clamp milestone to milestoneTotal when vesting end passed", async function () {
-    const { vesting, user, start, ONE_MONTH_IN_SECS, tgeTime } =
+  it("Should correctly claim milestone to milestoneTotal when vesting end passed", async function () {
+    const { vesting, user, token, vestingTerm, ONE_MONTH_IN_SECS } =
       await loadFixture(deployVestingFixture);
-    await time.increaseTo(tgeTime);
     // Jump far past the vesting period
-    await time.increaseTo(start + ONE_MONTH_IN_SECS * 100);
+    await time.increaseTo(vestingTerm.start + ONE_MONTH_IN_SECS * 100);
     // Should return full amount
-    const amount = await vesting.balance(user.address);
-    expect(amount).to.be.gt(0);
+    expect(await vesting.balance(user)).to.eq(vestingTerm.total);
+    await vesting.connect(user).claim();
+    expect(await token.balanceOf(user)).to.eq(vestingTerm.total);
+  });
+
+  it("Transfer vesting contract ownership", async function () {
+    const {
+      vesting,
+      user,
+      newUser,
+      vestingTerm,
+      ONE_MONTH_IN_SECS,
+      owner,
+      milestoneRelease,
+      token,
+    } = await loadFixture(deployVestingFixture);
+
+    // Increase time to start time of contract
+    await time.increaseTo(vestingTerm.start);
+    // Contract owner should able to claim
+    await vesting.connect(user).claim();
+
+    // Invalid owner shouldn't able to transfer vesting contract
+    expect(
+      vesting.connect(newUser).transferVestingContract(owner)
+    ).to.revertedWithCustomError(vesting, "UnableToTransfer");
+
+    const oldVestingContract = await vesting.getVestingSchedule(user);
+
+    await vesting.connect(user).transferVestingContract(newUser);
+
+    // Make sure contract was transfered completely
+    expect(await vesting.getVestingSchedule(user)).to.deep.eq([
+      0n,
+      0n,
+      0n,
+      0n,
+      0n,
+      0n,
+      0n,
+      0n,
+    ]);
+    expect(await vesting.getVestingSchedule(newUser)).to.deep.eq(
+      oldVestingContract
+    );
+
+    // Increase time to start time of contract
+    await time.increaseTo(vestingTerm.start + ONE_MONTH_IN_SECS);
+
+    // New user should able to claim token normally
+    await vesting.connect(newUser).claim();
+    expect(await token.balanceOf(newUser)).to.eq(milestoneRelease);
   });
 });

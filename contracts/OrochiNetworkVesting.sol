@@ -14,6 +14,7 @@ error InvalidVestingSchedule(address account);
 error UnableToAirdropToken(address beneficiary, uint256 amount);
 error BeneficiaryAmountMismatch(uint256 beneficaryList, uint256 amountList);
 error BeneficiaryAlreadyAdded(address account);
+error UnableToTransfer(address beneficiaryOld, address beneficiaryNew);
 error TGENotStarted();
 error TGEAlreadyStarted();
 
@@ -68,6 +69,12 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
 
     // Event emitted when airdrop is claimed
     event AirdropClaim(address account, uint256 amount);
+
+    // Event transfer a vesting contract
+    event TransferVestingContract(
+        address beneficiaryOld,
+        address beneficiaryNew
+    );
 
     // Event emitted when TGE is started
     event TGEStarted();
@@ -131,6 +138,24 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
             emit AirdropClaim(msg.sender, airdrop[msg.sender]);
             airdrop[msg.sender] = 0;
         }
+    }
+
+    /**
+     * Transfer vesting contract to new owner
+     * @param beneficiaryNew New vesting contract owner
+     */
+    function transferVestingContract(
+        address beneficiaryNew
+    ) external nonReentrant {
+        VestingSchedule memory vestingSchedule = schedule[msg.sender];
+        if (vestingSchedule.total == 0 || schedule[beneficiaryNew].total > 0) {
+            revert UnableToTransfer(msg.sender, beneficiaryNew);
+        }
+        // Delete old contract
+        delete schedule[msg.sender];
+        // Issue new contract with the same term
+        schedule[beneficiaryNew] = vestingSchedule;
+        emit TransferVestingContract(msg.sender, beneficiaryNew);
     }
 
     /*******************************************************
