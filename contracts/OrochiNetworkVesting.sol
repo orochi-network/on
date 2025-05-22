@@ -11,7 +11,6 @@ error NoClaimableToken(address account, uint64 milestone);
 error InsufficientBalance(address account, uint256 amount, uint256 remaining);
 error InvalidVestingTerm();
 error InvalidVestingSchedule(address account);
-error UnableToDistributeToken(address beneficiary, uint256 amount);
 error UnableToAirdropToken(address beneficiary, uint256 amount);
 error BeneficiaryAmountMismatch(uint256 beneficaryList, uint256 amountList);
 error BeneficiaryAlreadyAdded(address account);
@@ -52,14 +51,14 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
     // Token contract address
     IOrochiNetworkToken token;
 
+    // TGE time
+    uint256 private tgeTime;
+
     // Schedule of vesting
     mapping(address => VestingSchedule) private schedule;
 
     // Airdrop map for airdrop recipients
     mapping(address => uint256) private airdrop;
-
-    // Is TGE started or not
-    bool private isTGE = false;
 
     // Event emitted when token is claimed
     event TokenClaimed(address account, uint64 milestone, uint256 amount);
@@ -78,7 +77,7 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
      */
     modifier onlyPostTGE() {
         // It's require isTGE to be true to move one
-        if (isTGE == false) {
+        if (_isTGE() == false) {
             revert TGENotStarted();
         }
         _;
@@ -89,7 +88,7 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
      */
     modifier onlyPreTGE() {
         // It's require isTGE to be false to move one
-        if (isTGE == true) {
+        if (_isTGE() == true) {
             revert TGEAlreadyStarted();
         }
         _;
@@ -103,8 +102,9 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
      * Constructor
      * @param tokenAddress The address of the token contract
      */
-    constructor(address tokenAddress) {
+    constructor(address tokenAddress, uint256 tge) {
         token = IOrochiNetworkToken(tokenAddress);
+        tgeTime = tge;
     }
 
     /*******************************************************
@@ -136,16 +136,6 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
     /*******************************************************
      * Owner Pre TGE
      ********************************************************/
-
-    /**
-     * Starts the TGE and sets isTGE to true.
-     * This mean some pre TGE action will be locked
-     * @dev Only callable by the owner before TGE. Emits TGEStarted event.
-     */
-    function startTGE() external nonReentrant onlyOwner onlyPreTGE {
-        isTGE = true;
-        emit TGEStarted();
-    }
 
     /**
      * Add users to the airdrop pool
@@ -278,7 +268,7 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
         (uint64 milestone, uint256 amount) = _balance(account);
 
         // Check if there is any claimable token left
-        if (vestingSchedule.totalClaimed > 0 && milestone == 0) {
+        if (milestone > 0 && milestone == vestingSchedule.milestonClaimed) {
             revert NoClaimableToken(account, milestone);
         }
 
@@ -294,7 +284,7 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
         }
 
         // Update the vesting schedule
-        vestingSchedule.milestonClaimed += milestone;
+        vestingSchedule.milestonClaimed = milestone;
         vestingSchedule.totalClaimed += amount;
         schedule[account] = vestingSchedule;
 
@@ -330,7 +320,7 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
      * Is TGE started or not
      */
     function isTGEStarted() external view returns (bool) {
-        return isTGE;
+        return _isTGE();
     }
 
     /**
@@ -348,6 +338,13 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
      ********************************************************/
 
     /**
+     * Check if TGE is happend or not
+     */
+    function _isTGE() internal view returns (bool) {
+        return block.timestamp >= tgeTime;
+    }
+
+    /**
      * Calculate balance of the given account and milestone
      * @param account Address of the account
      * @return milestone Claimable milestone
@@ -357,12 +354,16 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
         address account
     ) internal view returns (uint64 milestone, uint256 amount) {
         VestingSchedule memory vestingSchedule = schedule[account];
+        // If vesting schedule wasn't started then return 0,0
         if (block.timestamp < vestingSchedule.start) {
             return (0, 0);
         }
 
         // A specificed case, all token vested immediately
         if (vestingSchedule.unlocked == vestingSchedule.total) {
+            // If they wasn't claim the token
+            // return milestone 0 and all unlocked amount
+            // otherwise return 0,0
             return
                 vestingSchedule.totalClaimed > 0
                     ? (0, 0)
@@ -381,22 +382,28 @@ contract OrochiNetworkVesting is ReentrancyGuard, Ownable {
             );
         }
 
-        // Milestone can't be greater than total milestones
         milestone = ((uint64(block.timestamp) - vestingSchedule.start) /
             vestingSchedule.duration);
+        // Milestone can't be greater than total milestones
         milestone = milestone >= milestoneTotal ? milestoneTotal : milestone;
 
         // Calculate claimable milestone
-        milestone = milestone - vestingSchedule.milestonClaimed;
+        uint256 milestoneClaimable = milestone <=
+            vestingSchedule.milestonClaimed
+            ? 0
+            : milestone - vestingSchedule.milestonClaimed;
 
         // If it's first claim then we include the unlocked TGE amount
         if (vestingSchedule.totalClaimed == 0 && vestingSchedule.unlocked > 0) {
             return (
                 milestone,
-                (milestone * vestingSchedule.milestoneReleaseAmount) +
+                (milestoneClaimable * vestingSchedule.milestoneReleaseAmount) +
                     vestingSchedule.unlocked
             );
         }
-        return (milestone, milestone * vestingSchedule.milestoneReleaseAmount);
+        return (
+            milestone,
+            milestoneClaimable * vestingSchedule.milestoneReleaseAmount
+        );
     }
 }
