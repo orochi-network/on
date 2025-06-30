@@ -1,18 +1,18 @@
 /* eslint-disable no-await-in-loop */
 import '@nomicfoundation/hardhat-ethers';
-import { Wallet } from 'ethers';
+import fs from 'fs';
 import { task } from 'hardhat/config';
-import { existsSync, readFileSync, writeFileSync } from 'fs';
-import EncryptionKey from '../helpers/encryption';
-import { getWallet } from '../helpers/wallet';
+import path from 'path';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
+import { DEPLOYED_CONTRACT_RESULT_PATH } from '../helpers/const';
+import { getWallet } from '../helpers/wallet';
 
 export const tgeTime = '1751353200'; // 2025-01-07 14:00:00 GMT+7
 
 task('deploy:vesting', 'Deploy vesting & token contract').setAction(
   async (_taskArgs: any, hre: HardhatRuntimeEnvironment) => {
     const { ethers } = hre;
-    const { chainId } = await ethers.provider.getNetwork();
+    const { chainId, name } = await ethers.provider.getNetwork();
     const account = await getWallet(hre, chainId);
     const block = await hre.ethers.provider.getBlock('latest');
     if (!account.provider) {
@@ -39,5 +39,21 @@ task('deploy:vesting', 'Deploy vesting & token contract').setAction(
 
     await (await ONToken.transferOwnership(VestingAddress)).wait();
     console.log('Successfully transfer ONToken ownership to Vesting contract');
+
+    const deploymentJson = fs.existsSync(DEPLOYED_CONTRACT_RESULT_PATH)
+      ? JSON.parse(fs.readFileSync(DEPLOYED_CONTRACT_RESULT_PATH).toString())
+      : {};
+    deploymentJson[name] = {
+      OrochiNetworkToken: ONTokenAddress,
+      VestingContract: VestingAddress,
+    };
+
+    const resultDir = path.dirname(DEPLOYED_CONTRACT_RESULT_PATH);
+    fs.mkdirSync(resultDir, { recursive: true });
+
+    fs.writeFileSync(
+      DEPLOYED_CONTRACT_RESULT_PATH,
+      JSON.stringify(deploymentJson)
+    );
   }
 );

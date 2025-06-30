@@ -37,6 +37,8 @@ npx hardhat create:wallet
 
 #### Get deployer address for specific chain
 
+Run this following command with your password created above.
+
 ```
 npx hardhat get:account --network [networkName]
 ```

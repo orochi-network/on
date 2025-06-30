@@ -7,7 +7,6 @@ config();
 const OROCHI_CONFIGURATION = {
   LOCAL_RPC: '',
   OROCHI_ENCRYPTED_PASSPHRASE: '',
-  OROCHI_OWNER: '',
 } as const;
 
 type TAlterConfig<T extends Record<string, string>> = {
@@ -27,9 +26,6 @@ function initEnv() {
     const k: keyof TEnvironment = keys[i] as keyof TEnvironment;
     const v = process.env[k] || OROCHI_CONFIGURATION[k];
     cleaned[k] = v.trim();
-  }
-  if (!isAddress(cleaned['OROCHI_OWNER'])) {
-    throw new Error('Invalid owner address');
   }
   return cleaned;
 }
