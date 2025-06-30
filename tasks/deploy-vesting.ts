@@ -7,7 +7,7 @@ import EncryptionKey from '../helpers/encryption';
 import { getWallet } from '../helpers/wallet';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 
-export const tgeTime = '1750834800'; // 2025-06-25 14:00:00 GMT+7
+export const tgeTime = '1751353200'; // 2025-01-07 14:00:00 GMT+7
 
 task('deploy:vesting', 'Deploy vesting & token contract').setAction(
   async (_taskArgs: any, hre: HardhatRuntimeEnvironment) => {
