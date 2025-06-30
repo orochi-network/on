@@ -7,7 +7,7 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DEPLOYED_CONTRACT_RESULT_PATH } from '../helpers/const';
 import { getWallet } from '../helpers/wallet';
 
-export const tgeTime = '1751353200'; // 2025-01-07 14:00:00 GMT+7
+export const tgeTime = 1751353200; // 2025-01-07 14:00:00 GMT+7
 
 task('deploy:vesting', 'Deploy vesting & token contract').setAction(
   async (_taskArgs: any, hre: HardhatRuntimeEnvironment) => {
