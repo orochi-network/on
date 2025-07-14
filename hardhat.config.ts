@@ -1,6 +1,7 @@
 import fs from "fs";
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import "@nomicfoundation/hardhat-viem";
 
 if (fs.existsSync("./typechain-types")) {
   const dir = fs.opendirSync(`${__dirname}/tasks`);
