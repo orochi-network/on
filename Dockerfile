@@ -3,7 +3,7 @@ FROM node:22
 WORKDIR /app
 COPY package*.json ./
 RUN yarn
-RUN yarn
+RUN yarn complie
 COPY . .
 
 # docker build --no-cache -t localnode:latest . 

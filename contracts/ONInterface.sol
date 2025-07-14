@@ -28,7 +28,6 @@ error InvalidAddress();
 
 /**
  * @dev Struct to define vesting term
- *
  */
 struct VestingTerm {
     address beneficiary;
