@@ -55,6 +55,7 @@ struct VestingSchedule {
  * @dev Struct to store vesting schedule
  */
 struct VestingDetail {
+    address contractAddress;
     address beneficiary;
     uint64 start;
     uint64 end;
@@ -86,12 +87,12 @@ interface IONVestingSub {
     /**
      * Claimable token balance of the given account
      */
-    function getBalance() external view returns (uint256);
+    function getClaimableBalance() external view returns (uint256);
 
     /**
      * Vesting balance
      */
-    function getVestingBalance() external view returns (uint256);
+    function getRemainingBalance() external view returns (uint256);
 
     /**
      * Get vesting schedule of the given account
