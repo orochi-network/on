@@ -11,7 +11,7 @@ import { abi as abiToken } from "../artifacts/contracts/ONToken.sol/OrochiNetwor
   });
 
   const token: ContractTypesMap["OrochiNetworkToken"] = getContract({
-    abi: abiVestingMain,
+    abi: abiToken,
     address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
     client,
   }) as any;
@@ -23,7 +23,7 @@ import { abi as abiToken } from "../artifacts/contracts/ONToken.sol/OrochiNetwor
   });
 
   const contract: ContractTypesMap["ONVestingMain"] = getContract({
-    abi: abiToken,
+    abi: abiVestingMain,
     address: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
     client,
   }) as any;
