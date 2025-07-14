@@ -126,7 +126,7 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
         VestingSchedule memory vestingSchedule = schedule;
 
         // If there is no token then vesting schedule is invalid
-        if (_getVestingBalance() <= 0) {
+        if (_getRemainingBalance() <= 0) {
             revert InvalidVestingSchedule(account);
         }
 
@@ -137,8 +137,8 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
             revert NoClaimableToken(account, milestone);
         }
 
-        if (amount > _getVestingBalance()) {
-            revert InsufficientBalance(account, amount, _getVestingBalance());
+        if (amount > _getRemainingBalance()) {
+            revert InsufficientBalance(account, amount, _getRemainingBalance());
         }
 
         // Update the vesting schedule
@@ -213,7 +213,7 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
     /**
      * Claimable token balance of the given account
      */
-    function getBalance() external view returns (uint256) {
+    function getClaimableBalance() external view returns (uint256) {
         (, uint256 amount) = _balance();
         return amount;
     }
@@ -221,8 +221,8 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
     /**
      * Vesting balance
      */
-    function getVestingBalance() external view returns (uint256) {
-        return _getVestingBalance();
+    function getRemainingBalance() external view returns (uint256) {
+        return _getRemainingBalance();
     }
 
     /**
@@ -232,16 +232,17 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
         VestingSchedule memory vestingSchedule = schedule;
         (, uint256 balance) = _balance();
         VestingDetail memory vestingDetail = VestingDetail({
+            contractAddress: address(this),
             beneficiary: beneficiary,
             start: vestingSchedule.start,
             end: vestingSchedule.end,
             milestoneDuration: vestingSchedule.milestoneDuration,
             milestoneClaimed: vestingSchedule.milestoneClaimed,
             milestoneReleaseAmount: vestingSchedule.milestoneReleaseAmount,
-            unlockedAtTGE: vestingSchedule.milestoneReleaseAmount,
-            totalClaimed: vestingSchedule.milestoneReleaseAmount,
+            unlockedAtTGE: vestingSchedule.unlockedAtTGE,
+            totalClaimed: vestingSchedule.totalClaimed,
             balanceClaimable: balance,
-            balanceRemain: _getVestingBalance()
+            balanceRemain: _getRemainingBalance()
         });
 
         return vestingDetail;
@@ -254,7 +255,7 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
     /**
      * Vesting balance
      */
-    function _getVestingBalance() internal view returns (uint256) {
+    function _getRemainingBalance() internal view returns (uint256) {
         return token.balanceOf(address(this));
     }
 
