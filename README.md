@@ -4,6 +4,19 @@ The Orochi Network Token ($ON) and its vesting contract are designed to ensure t
 
 ## Usage
 
+Build the image
+
+```txt
+docker build --no-cache -t localnode:latest .
+
+```
+
+Start local RPC node
+
+```txt
+docker run --name localrpc -ti -p 8545:8545 --rm localnode
+```
+
 ### Installation
 
 ```txt
