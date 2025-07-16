@@ -20,18 +20,6 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
     // Schedule of vesting
     VestingSchedule private schedule;
 
-    // Event emitted when token is claimed
-    event TokenClaimed(address beneficiary, uint64 milestone, uint256 amount);
-
-    // Event emitted when token is unlockedAtTGE at TGE
-    event UnlockAtTGE(address beneficiary, uint256 amount);
-
-    // Event transfer a vesting contract
-    event TransferVestingContract(
-        address beneficiaryOld,
-        address beneficiaryNew
-    );
-
     /**
      * @dev Modifier to make sure that the TGE is started
      */
@@ -70,22 +58,19 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
      * Init method
      * @param onVestingMainAddress The address of the main vesting contract
      * @param vestingTerm Vesting term
-     * @param tokenAddress The address of the token contract
      */
     function init(
         address onVestingMainAddress,
-        VestingTerm memory vestingTerm,
-        address tokenAddress
+        VestingTerm memory vestingTerm
     ) external onlyOnce nonReentrant returns (bool) {
         if (
-            tokenAddress == address(0) ||
             onVestingMainAddress == address(0) ||
             vestingTerm.beneficiary == address(0)
         ) {
             revert InvalidAddress();
         }
-        token = IONToken(tokenAddress);
         onVestingMain = IONVestingMain(onVestingMainAddress);
+        token = IONToken(onVestingMain.getTokenAddress());
         beneficiary = vestingTerm.beneficiary;
         _addVestingTerm(vestingTerm);
         return true;
@@ -161,8 +146,8 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
     function _addVestingTerm(VestingTerm memory term) internal {
         if (term.total == term.unlockedAtTGE) {
             schedule = VestingSchedule({
-                start: uint64(block.timestamp),
-                end: uint64(block.timestamp),
+                cliff: 0,
+                vestingDuration: 0,
                 milestoneDuration: 0,
                 milestoneClaimed: 0,
                 milestoneReleaseAmount: 0,
@@ -176,13 +161,13 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
 
         // Filter invalid terms
         if (
+            term.cliff >= 0 &&
             term.total > term.unlockedAtTGE &&
-            term.start > block.timestamp &&
-            term.milestoneDuration > 0 &&
-            term.end >= (term.start + term.milestoneDuration)
+            term.vestingDuration >= term.milestoneDuration &&
+            term.milestoneDuration > 0
         ) {
             uint256 remaining = term.total - term.unlockedAtTGE;
-            uint256 milestoneTotal = (term.end - term.start) /
+            uint256 milestoneTotal = term.vestingDuration /
                 term.milestoneDuration;
             uint256 milestoneReleaseAmount = remaining / milestoneTotal;
             if (milestoneTotal > 0 && milestoneReleaseAmount > 0) {
@@ -192,8 +177,8 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
                 }
 
                 schedule = VestingSchedule({
-                    start: term.start,
-                    end: term.end,
+                    cliff: term.cliff,
+                    vestingDuration: term.vestingDuration,
                     milestoneDuration: term.milestoneDuration,
                     milestoneClaimed: 0,
                     milestoneReleaseAmount: milestoneReleaseAmount,
@@ -209,6 +194,20 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
     /*******************************************************
      * External View
      ********************************************************/
+
+    /**
+     * Get start of vesting time
+     */
+    function getTimeStart() external view returns (uint64) {
+        return _timeStart();
+    }
+
+    /**
+     * Get end of vesting time
+     */
+    function getTimeEnd() external view returns (uint64) {
+        return _timeEnd();
+    }
 
     /**
      * Claimable token balance of the given account
@@ -234,8 +233,8 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
         VestingDetail memory vestingDetail = VestingDetail({
             contractAddress: address(this),
             beneficiary: beneficiary,
-            start: vestingSchedule.start,
-            end: vestingSchedule.end,
+            start: _timeStart(),
+            end: _timeEnd(),
             milestoneDuration: vestingSchedule.milestoneDuration,
             milestoneClaimed: vestingSchedule.milestoneClaimed,
             milestoneReleaseAmount: vestingSchedule.milestoneReleaseAmount,
@@ -251,6 +250,20 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
     /*******************************************************
      * Internal View
      ********************************************************/
+
+    /**
+     * Start of vesting time
+     */
+    function _timeStart() internal view returns (uint64) {
+        return uint64(onVestingMain.getTimeTGE() + schedule.cliff);
+    }
+
+    /**
+     * End of vesting time
+     */
+    function _timeEnd() internal view returns (uint64) {
+        return _timeStart() + schedule.vestingDuration;
+    }
 
     /**
      * Vesting balance
@@ -280,14 +293,14 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
 
         // Only start vesting
         if (
-            block.timestamp >= vestingSchedule.start &&
+            block.timestamp >= _timeStart() &&
             vestingSchedule.milestoneDuration > 0
         ) {
             // Calculate total milestones
-            uint64 milestoneTotal = (vestingSchedule.end -
-                vestingSchedule.start) / vestingSchedule.milestoneDuration;
+            uint64 milestoneTotal = vestingSchedule.vestingDuration /
+                vestingSchedule.milestoneDuration;
 
-            milestone = ((uint64(block.timestamp) - vestingSchedule.start) /
+            milestone = ((uint64(block.timestamp) - _timeStart()) /
                 vestingSchedule.milestoneDuration);
             // Milestone can't be greater than total milestones
             milestone = milestone >= milestoneTotal

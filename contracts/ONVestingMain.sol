@@ -14,25 +14,19 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
     using Clones for address;
 
     // Token contract address
-    IONToken token;
+    IONToken private token;
 
     // TGE time
     uint256 private timeTGE;
 
+    // Based implementation of ON Vesting Sub
     address private onVestingSub;
 
     // Total number of vesting contract
     uint256 private vestingContractTotal;
 
     // Mapping from index to vesting contract address
-    mapping(uint256 => address) vestingContractMap;
-
-    // Event emitted when new vesting contract was created
-    event AddNewVestingContract(
-        uint256 indexed vestingContractTotal,
-        address indexed newVestingContract,
-        address indexed beneficiary
-    );
+    mapping(uint256 => address) private vestingContractMap;
 
     /**
      * @dev Modifier to make sure that the TGE is started
@@ -69,14 +63,31 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
         uint256 timestampTGE,
         address onVestingSubImplementation
     ) Ownable() {
+        if (
+            tokenAddress == address(0) ||
+            onVestingSubImplementation == address(0)
+        ) {
+            revert InvalidAddress();
+        }
         token = IONToken(tokenAddress);
-        timeTGE = timestampTGE;
         onVestingSub = onVestingSubImplementation;
+        _setTimeTGE(timestampTGE);
     }
 
     /*******************************************************
      * Owner Pre TGE
      ********************************************************/
+
+    /**
+     * Set TGE time
+     */
+    function setTimeTGE() external onlyOwner nonReentrant onlyPreTGE {
+        if (token.totalSupply() == 0) {
+            _setTimeTGE(block.timestamp);
+        } else {
+            revert TGEAlreadyStarted();
+        }
+    }
 
     /**
      * Mint maxium supply to this contract
@@ -102,8 +113,7 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
         if (
             IONVestingSub(newVestingContract).init(
                 address(this),
-                vestingTerm,
-                address(token)
+                vestingTerm
             ) && token.transfer(newVestingContract, vestingTerm.total)
         ) {
             emit AddNewVestingContract(
@@ -115,6 +125,22 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
             return;
         }
         revert UnableToAddNewVestingContract(vestingTerm.beneficiary);
+    }
+
+    /*******************************************************
+     * Internal
+     ********************************************************/
+
+    /**
+     * Set the TGE time
+     * @param timestampTGE Timestamp of the TGE
+     */
+    function _setTimeTGE(uint256 timestampTGE) internal {
+        if (timestampTGE <= block.timestamp) {
+            revert TGETimeMustBeInTheFuture(timestampTGE);
+        }
+        timeTGE = timestampTGE;
+        emit SetTimeTGE(timestampTGE);
     }
 
     /*******************************************************

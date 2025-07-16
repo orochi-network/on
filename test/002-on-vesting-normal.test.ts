@@ -46,16 +46,12 @@ describe("ONVestingMain", function () {
 
     await onVestingMain.mint();
 
-    const start = timeTGE + ONE_MONTH * 3n;
-
-    const end = start + ONE_MONTH * 12n;
-
     const vestingTerm = {
       beneficiary: beneficiary1,
       unlockedAtTGE: 1000n,
       milestoneDuration: ONE_MONTH,
-      start,
-      end,
+      cliff: ONE_MONTH * 3n,
+      vestingDuration: 12n * ONE_MONTH,
       total: 1000000n,
     };
 
@@ -83,7 +79,6 @@ describe("ONVestingMain", function () {
       onVestingSubImpl,
       onVestingMain,
       blockTimestamp,
-      timeTGE,
       getOnVestingSubByIndex,
     };
   }
@@ -112,13 +107,11 @@ describe("ONVestingMain", function () {
 
   it("Should able to claim token", async function () {
     const {
-      owner,
       beneficiary1,
-      onVestingMain,
       vestingTerm,
-      timeTGE,
       token,
       getOnVestingSubByIndex,
+      onVestingMain,
     } = await loadFixture(fixture);
 
     const vestingContract = (await getOnVestingSubByIndex(0)).connect(
@@ -128,23 +121,26 @@ describe("ONVestingMain", function () {
     const releaseVesting = [];
 
     // Unlock at TGE should be correct
-    await time.increaseTo(timeTGE);
+    await time.increaseTo(await onVestingMain.getTimeTGE());
     await vestingContract.claim();
     expect(await token.balanceOf(beneficiary1)).to.eq(
       vestingTerm.unlockedAtTGE
     );
 
+    const timeStart = await vestingContract.getTimeStart();
+    const timeEnd = await vestingContract.getTimeEnd();
+
     // The whole vesting timeline should be correct
     for (
-      let currentTime = vestingTerm.start;
-      currentTime <= vestingTerm.end;
+      let currentTime = timeStart;
+      currentTime <= timeEnd;
       currentTime += vestingTerm.milestoneDuration
     ) {
       const beforeBalance = await token.balanceOf(beneficiary1);
       await time.increaseTo(currentTime);
       await vestingContract.claim();
       const milestone = BigInt(
-        (currentTime - vestingTerm.start) / vestingTerm.milestoneDuration
+        (currentTime - timeStart) / vestingTerm.milestoneDuration
       );
       const vestedToken =
         milestone * ((vestingTerm.total - vestingTerm.unlockedAtTGE) / 12n);
@@ -160,7 +156,7 @@ describe("ONVestingMain", function () {
     console.table(releaseVesting);
 
     // Should not claim more than you have
-    await time.increaseTo(vestingTerm.end + 3n * ONE_MONTH);
+    await time.increaseTo(timeEnd + ONE_MONTH);
     expect(vestingContract.claim()).to.revertedWithCustomError(
       vestingContract,
       "InvalidVestingSchedule"
