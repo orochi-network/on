@@ -81,6 +81,8 @@ describe("ONAirdrop", function () {
     await expect(
       onAirdrop.connect(receiver1).claimAirdrop()
     ).to.revertedWithCustomError(onAirdrop, "UnableToAirdropToken");
+
+    expect(await onAirdrop.balanceAirdrop(receiver1)).to.eq(0n);
   });
 
   it("Should able to add new airdrop if length mistmatch", async function () {
