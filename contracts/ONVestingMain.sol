@@ -29,17 +29,6 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
     mapping(uint256 => address) private vestingContractMap;
 
     /**
-     * @dev Modifier to make sure that the TGE is started
-     */
-    modifier onlyPostTGE() {
-        // It's require isTGE to be true to move one
-        if (!_isTGE()) {
-            revert TGENotStarted();
-        }
-        _;
-    }
-
-    /**
      * @dev Modifier to make sure that the TGE is not started yet
      */
     modifier onlyPreTGE() {
@@ -61,32 +50,42 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
     constructor(
         address tokenAddress,
         uint256 timestampTGE,
-        address onVestingSubImplementation
+        address onVestingSubImpl
     ) Ownable() {
-        if (
-            tokenAddress == address(0) ||
-            onVestingSubImplementation == address(0)
-        ) {
-            revert InvalidAddress();
-        }
-        token = IONToken(tokenAddress);
-        onVestingSub = onVestingSubImplementation;
+        _seTokenAddress(tokenAddress);
+        _setImplementation(onVestingSubImpl);
         _setTimeTGE(timestampTGE);
     }
 
     /*******************************************************
-     * Owner Pre TGE
+     * External Owner
      ********************************************************/
+
+    /**
+     * Set ONToken address
+     */
+    function setTokenAddress(
+        address tokenAddress
+    ) external onlyOwner nonReentrant onlyPreTGE {
+        _seTokenAddress(tokenAddress);
+    }
+
+    /**
+     * Set ONVestingSub implementation
+     */
+    function setImplementation(
+        address onVestingSubImpl
+    ) external onlyOwner nonReentrant onlyPreTGE {
+        _setImplementation(onVestingSubImpl);
+    }
 
     /**
      * Set TGE time
      */
-    function setTimeTGE() external onlyOwner nonReentrant onlyPreTGE {
-        if (token.totalSupply() == 0) {
-            _setTimeTGE(block.timestamp);
-        } else {
-            revert TGEAlreadyStarted();
-        }
+    function setTimeTGE(
+        uint256 timestampTGE
+    ) external onlyOwner nonReentrant onlyPreTGE {
+        _setTimeTGE(timestampTGE);
     }
 
     /**
@@ -132,6 +131,30 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
      ********************************************************/
 
     /**
+     * Set ONVestingSub implementation address
+     * @param onVestingSubImpl Address of ONVestingSub implementation
+     */
+    function _setImplementation(address onVestingSubImpl) internal {
+        if (onVestingSubImpl == address(0)) {
+            revert InvalidAddress();
+        }
+        onVestingSub = onVestingSubImpl;
+        emit SetImplementation(onVestingSubImpl);
+    }
+
+    /**
+     * Set ONToken address
+     * @param onTokenAddress On token addresss
+     */
+    function _seTokenAddress(address onTokenAddress) internal {
+        if (onTokenAddress == address(0)) {
+            revert InvalidAddress();
+        }
+        token = IONToken(onTokenAddress);
+        emit SetTokenAddress(onTokenAddress);
+    }
+
+    /**
      * Set the TGE time
      * @param timestampTGE Timestamp of the TGE
      */
@@ -146,6 +169,13 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
     /*******************************************************
      * External View
      ********************************************************/
+
+    /**
+     * Get ONVestingSub implementation address
+     */
+    function getImplementation() external view returns (address) {
+        return address(onVestingSub);
+    }
 
     /**
      * Get token address

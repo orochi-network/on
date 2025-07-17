@@ -122,6 +122,8 @@ interface IONVestingMain {
         address indexed beneficiary
     );
     event SetTimeTGE(uint256 timeTGE);
+    event SetImplementation(address onVestingSubImpl);
+    event SetTokenAddress(address onTokenAddress);
 
     // Functions
     function mint() external;
