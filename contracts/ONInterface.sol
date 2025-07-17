@@ -74,41 +74,42 @@ struct VestingDetail {
  */
 interface IONVestingSub {
     // Events
-    event TokenClaimed(address beneficiary, uint64 milestone, uint256 amount);
-    event UnlockAtTGE(address beneficiary, uint256 amount);
-    event TransferVestingContract(
-        address beneficiaryOld,
-        address beneficiaryNew
+    event TokenClaimed(
+        address indexed beneficiary,
+        uint64 milestone,
+        uint256 amount
     );
-    event EmergencyWithdrawal(address beneficiary, uint256 amount);
+    event EmergencyWithdrawal(address indexed beneficiary, uint256 amount);
+    event UnlockAtTGE(address indexed beneficiary, uint256 amount);
+    event TransferVestingContract(
+        address indexed oldBeneficiary,
+        address indexed newBeneficiary
+    );
 
-    // Functions
-
-    // Initialization; callable only once
+    // Init
     function init(
         address onVestingMainAddress,
         VestingTerm memory vestingTerm
     ) external returns (bool);
 
-    // Claim tokens (only beneficiary, after TGE)
+    // Beneficiary actions
     function claim() external;
 
-    // Get start of vesting time
-    function getTimeStart() external view returns (uint64);
+    function emergency() external;
 
-    // Get End of vesting time
-    function getTimeEnd() external view returns (uint64);
-
-    // Transfer vesting contract to new beneficiary (only beneficiary)
     function transferVestingContract(address beneficiaryNew) external;
 
-    // Return claimable balance for beneficiary
+    // Views
+    function getBeneficiary() external view returns (address);
+
+    function getTimeStart() external view returns (uint64);
+
+    function getTimeEnd() external view returns (uint64);
+
     function getClaimableBalance() external view returns (uint256);
 
-    // Return remaining vesting balance
     function getRemainingBalance() external view returns (uint256);
 
-    // Return full vesting detail struct
     function getVestingDetail() external view returns (VestingDetail memory);
 }
 
@@ -116,21 +117,32 @@ interface IONVestingSub {
  * @title Orochi Network Vesting Main
  */
 interface IONVestingMain {
-    // Event
+    // Events matching the main contract
+    event SetImplementation(address indexed implementation);
+    event SetTokenAddress(address indexed tokenAddress);
+    event SetTimeTGE(uint256 indexed timestampTGE);
+    event TransferToken(address indexed to, uint256 value);
     event AddNewVestingContract(
-        uint256 indexed vestingContractTotal,
-        address indexed newVestingContract,
+        uint256 indexed index,
+        address vestingContract,
         address indexed beneficiary
     );
-    event SetTimeTGE(uint256 timeTGE);
-    event SetImplementation(address onVestingSubImpl);
-    event SetTokenAddress(address onTokenAddress);
-    event TransferToken(address to, uint256 value);
 
-    // Functions
+    // External functions
+    function transfer(address to, uint256 value) external;
+
+    function setTokenAddress(address tokenAddress) external;
+
+    function setImplementation(address onVestingSubImpl) external;
+
+    function setTimeTGE(uint256 timestampTGE) external;
+
     function mint() external;
 
     function addVestingTerm(VestingTerm calldata vestingTerm) external;
+
+    // View functions
+    function getImplementation() external view returns (address);
 
     function getTokenAddress() external view returns (address);
 
