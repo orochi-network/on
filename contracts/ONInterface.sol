@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 //IOVestingMain
 error UnableToAddNewVestingContract(address beneficiary);
-
 error UnableToRelease(address account, uint64 milestone, uint256 amount);
 error VestingWasNotStarted(address account, uint64 timestamp, uint64 start);
 error NoClaimableToken(address account, uint64 milestone);
@@ -16,6 +15,7 @@ error UnableToAirdropToken(address beneficiary, uint256 amount);
 error InvalidBeneficiary(address beneficiary);
 error BeneficiaryAmountMismatch(uint256 beneficaryList, uint256 amountList);
 error TGETimeMustBeInTheFuture(uint256 timestamp);
+error UnableToCallEmergency();
 
 error BeneficiaryAlreadyAdded(address account);
 error UnableToTransferVestingContract(
@@ -80,6 +80,7 @@ interface IONVestingSub {
         address beneficiaryOld,
         address beneficiaryNew
     );
+    event EmergencyWithdrawal(address beneficiary, uint256 amount);
 
     // Functions
 

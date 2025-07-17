@@ -263,4 +263,40 @@ describe("ONVestingMain", function () {
     expect(await onVestingMain.getImplementation()).to.eq(beneficiary2.address);
     expect(await onVestingMain.getTimeTGE()).to.eq(newTimeTGE);
   });
+
+  it("Emergency withdraw should work as expected", async function () {
+    const {
+      vestingTerm,
+      token,
+      beneficiary1,
+      onVestingMain,
+      getOnVestingSubByIndex,
+    } = await loadFixture(fixture);
+
+    const vestingContract = (await getOnVestingSubByIndex(0n)).connect(
+      beneficiary1
+    );
+
+    await expect(vestingContract.emergency()).to.revertedWithCustomError(
+      vestingContract,
+      "TGENotStarted"
+    );
+
+    await time.increaseTo(await onVestingMain.getTimeTGE());
+
+    await expect(vestingContract.emergency()).to.revertedWithCustomError(
+      vestingContract,
+      "UnableToCallEmergency"
+    );
+
+    await time.increaseTo((await vestingContract.getTimeEnd()) + ONE_QUARTER);
+
+    await expect(vestingContract.emergency()).to.emit(
+      vestingContract,
+      "EmergencyWithdrawal"
+    );
+
+    expect(await token.balanceOf(vestingContract)).to.eq(0n);
+    expect(await token.balanceOf(beneficiary1)).to.eq(vestingTerm.total);
+  });
 });
