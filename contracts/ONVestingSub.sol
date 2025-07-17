@@ -115,7 +115,7 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
         (uint64 milestone, uint256 amount) = _balance();
 
         // Check if there is any claimable token left
-        if (milestone > 0 && milestone == vestingSchedule.milestoneClaimed) {
+        if (amount == 0) {
             revert NoClaimableToken(account, milestone);
         }
 

@@ -18,7 +18,7 @@ describe("OrochiNetworkToken", function () {
   });
 
   it("Owner can mint tokens", async function () {
-    const { token, owner, addr1 } = await loadFixture(deployTokenFixture);
+    const { token, owner } = await loadFixture(deployTokenFixture);
     await expect(token.connect(owner).mint())
       .to.emit(token, "Transfer")
       .withArgs(ZeroAddress, await owner.getAddress(), parseEther("700000000"));
@@ -28,7 +28,7 @@ describe("OrochiNetworkToken", function () {
   });
 
   it("Non-owner cannot mint tokens", async function () {
-    const { token, addr1, addr2 } = await loadFixture(deployTokenFixture);
+    const { token, addr1 } = await loadFixture(deployTokenFixture);
     await expect(token.connect(addr1).mint()).to.be.revertedWith(
       "Ownable: caller is not the owner"
     );

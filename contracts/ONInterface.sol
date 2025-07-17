@@ -124,6 +124,7 @@ interface IONVestingMain {
     event SetTimeTGE(uint256 timeTGE);
     event SetImplementation(address onVestingSubImpl);
     event SetTokenAddress(address onTokenAddress);
+    event TransferToken(address to, uint256 value);
 
     // Functions
     function mint() external;

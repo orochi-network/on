@@ -2,10 +2,8 @@ import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import hre from "hardhat";
-import { ONVestingSub } from "../typechain-types";
-import { VestingTermStruct } from "../typechain-types/contracts/ONInterface.sol/IONVestingSub";
-import { ZeroAddress } from "ethers";
 import { zeroAddress } from "viem";
+import { ONVestingSub } from "../typechain-types";
 
 const ONE_DAY = BigInt(24 * 60 * 60);
 const ONE_MONTH = ONE_DAY * 30n;
@@ -93,10 +91,8 @@ describe("ONVestingSub", function () {
 
     expect(await vestingSub.getBeneficiary()).to.eq(beneficiary1.address);
 
-    expect(
-      await vestingSub
-        .connect(beneficiary1)
-        .transferVestingContract(beneficiary2)
+    await expect(
+      vestingSub.connect(beneficiary1).transferVestingContract(beneficiary2)
     )
       .to.emit(vestingSub, "TransferVestingContract")
       .withArgs(beneficiary1.address, beneficiary2.address);
@@ -110,7 +106,7 @@ describe("ONVestingSub", function () {
 
     const vestingSub = (await getOnVestingSubByIndex(0n)).connect(beneficiary1);
 
-    expect(
+    await expect(
       vestingSub.init(onVestingMain, vestingTerm)
     ).to.revertedWithCustomError(vestingSub, "UnableToInitTwice");
   });
@@ -121,7 +117,7 @@ describe("ONVestingSub", function () {
 
     const vestingSub = (await getOnVestingSubByIndex(0n)).connect(beneficiary2);
     await time.increaseTo(await onVestingMain.getTimeTGE());
-    expect(vestingSub.claim()).to.revertedWithCustomError(
+    await expect(vestingSub.claim()).to.revertedWithCustomError(
       vestingSub,
       "InvalidBeneficiary"
     );
@@ -134,7 +130,7 @@ describe("ONVestingSub", function () {
 
     const onVestingSub = await ONVestingSub.deploy();
     await onVestingSub.deploymentTransaction();
-    expect(
+    await expect(
       onVestingSub.init(zeroAddress, vestingTerm)
     ).to.revertedWithCustomError(onVestingSub, "InvalidAddress");
 
@@ -143,7 +139,7 @@ describe("ONVestingSub", function () {
       beneficiary: zeroAddress,
     };
 
-    expect(
+    await expect(
       onVestingSub.init(onVestingMain, newVestingTerm)
     ).to.revertedWithCustomError(onVestingSub, "InvalidAddress");
   });

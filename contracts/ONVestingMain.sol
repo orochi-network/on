@@ -64,6 +64,18 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
     /**
      * Set ONToken address
      */
+    function transfer(
+        address to,
+        uint256 value
+    ) external onlyOwner nonReentrant {
+        if (token.transfer(to, value)) {
+            emit TransferToken(to, value);
+        }
+    }
+
+    /**
+     * Set ONToken address
+     */
     function setTokenAddress(
         address tokenAddress
     ) external onlyOwner nonReentrant onlyPreTGE {

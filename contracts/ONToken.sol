@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  */
 contract OrochiNetworkToken is ERC20, Ownable {
     /**
-     * Deploy and initialize the ONProver contract
+     * Deploy and initialize the Orochi Network Token
      * @param name Token name
      * @param symbol Token symbol
      */

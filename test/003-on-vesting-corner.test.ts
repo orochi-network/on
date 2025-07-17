@@ -1,10 +1,10 @@
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
+import { ZeroAddress } from "ethers";
 import hre from "hardhat";
 import { ONVestingSub } from "../typechain-types";
 import { VestingTermStruct } from "../typechain-types/contracts/ONInterface.sol/IONVestingSub";
-import { ZeroAddress } from "ethers";
 
 const ONE_DAY = BigInt(24 * 60 * 60);
 const ONE_MONTH = ONE_DAY * 30n;
@@ -101,6 +101,27 @@ describe("ONVestingMain", function () {
     ).to.revertedWith("Ownable: caller is not the owner");
   });
 
+  it("Should not able to add an invalid vesting term", async function () {
+    const {
+      beneficiary2,
+      onVestingMain,
+      owner,
+      vestingTerm,
+      onVestingSubImpl,
+    } = await loadFixture(fixture);
+
+    const invalidTerm: VestingTermStruct = {
+      ...vestingTerm,
+      beneficiary: beneficiary2,
+      vestingDuration: 10n,
+    };
+
+    // out: event AddNewVestingContract(index, addr, beneficiary)
+    await expect(
+      onVestingMain.connect(owner).addVestingTerm(invalidTerm)
+    ).to.revertedWithCustomError(onVestingSubImpl, "InvalidVestingTerm");
+  });
+
   it("Should not able to claim token before TGE", async function () {
     const { beneficiary1, getOnVestingSubByIndex, onVestingSubImpl } =
       await loadFixture(fixture);
@@ -117,10 +138,9 @@ describe("ONVestingMain", function () {
       await loadFixture(fixture);
 
     const contract1 = await getOnVestingSubByIndex(0n);
-    expect(contract1.connect(beneficiary1).claim()).to.revertedWithCustomError(
-      onVestingSubImpl,
-      "TGENotStarted"
-    );
+    await expect(
+      contract1.connect(beneficiary1).claim()
+    ).to.revertedWithCustomError(onVestingSubImpl, "TGENotStarted");
   });
 
   it("Should not able to change TGE time after TGE", async function () {
@@ -129,7 +149,7 @@ describe("ONVestingMain", function () {
     const timeTGE = await onVestingMain.getTimeTGE();
 
     time.increaseTo(timeTGE);
-    expect(
+    await expect(
       onVestingMain.setTimeTGE(timeTGE + ONE_DAY)
     ).to.revertedWithCustomError(onVestingMain, "TGEAlreadyStarted");
   });
@@ -140,7 +160,7 @@ describe("ONVestingMain", function () {
     // Deploy a minimal ONVestingMain with suitable constructor args
     const ONVestingMain = await hre.ethers.getContractFactory("ONVestingMain");
 
-    expect(
+    await expect(
       ONVestingMain.deploy(
         ZeroAddress,
         blockTimestamp + ONE_MONTH,
@@ -148,7 +168,7 @@ describe("ONVestingMain", function () {
       )
     ).to.revertedWithCustomError(onVestingMain, "InvalidAddress");
 
-    expect(
+    await expect(
       ONVestingMain.deploy(token, blockTimestamp + ONE_MONTH, ZeroAddress)
     ).to.revertedWithCustomError(onVestingMain, "InvalidAddress");
   });
@@ -158,23 +178,63 @@ describe("ONVestingMain", function () {
 
     await time.increaseTo(await onVestingMain.getTimeTGE());
 
-    expect(
+    await expect(
       onVestingMain.addVestingTerm(vestingTerm)
     ).to.revertedWithCustomError(onVestingMain, "TGEAlreadyStarted");
   });
 
-  it("Should not able to add invalid vesting", async function () {
-    const { onVestingMain, vestingTerm } = await loadFixture(fixture);
+  it("Should not able to add invalid token", async function () {
+    const {
+      token,
+      beneficiary1,
+      onVestingMain,
+      vestingTerm,
+      getOnVestingSubByIndex,
+    } = await loadFixture(fixture);
 
-    const newTerm = {
-      ...vestingTerm,
-      milestoneDuration: 0n,
-    };
+    const MockTokenNoTransfer = await hre.ethers.getContractFactory(
+      "MockTokenNoTransfer"
+    );
+    const mockToken = await MockTokenNoTransfer.deploy(token);
+    await mockToken.deploymentTransaction();
 
-    expect(onVestingMain.addVestingTerm(newTerm)).to.revertedWithCustomError(
+    await onVestingMain.setTokenAddress(mockToken);
+
+    await expect(
+      onVestingMain.addVestingTerm(vestingTerm)
+    ).to.revertedWithCustomError(
       onVestingMain,
       "UnableToAddNewVestingContract"
     );
+
+    const vestingContract = await getOnVestingSubByIndex(0n);
+
+    await time.increaseTo((await vestingContract.getTimeStart()) + ONE_MONTH);
+
+    await expect(
+      vestingContract.connect(beneficiary1).claim()
+    ).to.revertedWithCustomError(vestingContract, "UnableToRelease");
+  });
+
+  it("Should not able to add wrong balance token", async function () {
+    const { beneficiary1, onVestingMain, getOnVestingSubByIndex } =
+      await loadFixture(fixture);
+
+    const MockTokenWrongBalance = await hre.ethers.getContractFactory(
+      "MockTokenWrongBalance"
+    );
+    const mockToken = await MockTokenWrongBalance.deploy();
+    await mockToken.deploymentTransaction();
+
+    await onVestingMain.setTokenAddress(mockToken);
+
+    const vestingContract = await getOnVestingSubByIndex(0n);
+
+    await time.increaseTo((await vestingContract.getTimeStart()) + ONE_MONTH);
+
+    await expect(
+      vestingContract.connect(beneficiary1).claim()
+    ).to.revertedWithCustomError(vestingContract, "InsufficientBalance");
   });
 
   it("Should not able to add vesting term with invalid token", async function () {
@@ -187,8 +247,16 @@ describe("ONVestingMain", function () {
 
     await onVestingMain.setTokenAddress(token);
 
-    expect(onVestingMain.addVestingTerm(vestingTerm)).to.revertedWith(
+    await expect(onVestingMain.addVestingTerm(vestingTerm)).to.revertedWith(
       "ERC20: transfer amount exceeds balance"
     );
+  });
+
+  it("Should not able to set TGE time in the past", async function () {
+    const { onVestingMain, blockTimestamp } = await loadFixture(fixture);
+
+    await expect(
+      onVestingMain.setTimeTGE(blockTimestamp - 10n)
+    ).to.revertedWithCustomError(onVestingMain, "TGETimeMustBeInTheFuture");
   });
 });
