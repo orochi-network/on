@@ -4,6 +4,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { ONVestingSub } from "../typechain-types";
 import { VestingTermStruct } from "../typechain-types/contracts/ONInterface.sol/IONVestingSub";
+import { parseEther } from "ethers";
 
 const ONE_DAY = BigInt(24 * 60 * 60);
 const ONE_MONTH = ONE_DAY * 30n;
@@ -56,7 +57,7 @@ describe("ONVestingMain", function () {
     };
 
     // out: event AddNewVestingContract(index, addr, beneficiary)
-    await expect(await onVestingMain.connect(owner).addVestingTerm(vestingTerm))
+    await expect(onVestingMain.connect(owner).addVestingTerm(vestingTerm))
       .to.emit(onVestingMain, "AddNewVestingContract")
       .withArgs(0, anyValue, beneficiary1.address);
 
@@ -82,6 +83,31 @@ describe("ONVestingMain", function () {
     };
   }
 
+  it("Should add a vesting term with zero unlocked at TGE", async function () {
+    const { owner, beneficiary2, onVestingMain } = await loadFixture(fixture);
+    // Cliff 3 months
+    // Unlock at TGE 1,000
+    // Total: 1,000,000
+    const term: VestingTermStruct = {
+      beneficiary: beneficiary2,
+      unlockedAtTGE: 0n,
+      vestingDuration: 1n,
+      milestoneDuration: 1n,
+      cliff: 0n,
+      total: parseEther("1000"),
+    };
+
+    // out: event AddNewVestingContract(index, addr, beneficiary)
+    await expect(onVestingMain.connect(owner).addVestingTerm(term))
+      .to.emit(onVestingMain, "AddNewVestingContract")
+      .withArgs(1, anyValue, beneficiary2.address); // anyValue: address of new vesting contract
+
+    // Should increment total count
+    expect(await onVestingMain.getVestingContractTotal()).to.equal(2);
+
+    expect(await onVestingMain.getVestingContractAddress(1)).to.properAddress;
+  });
+
   it("Should add a vesting term and emit event", async function () {
     const { owner, beneficiary2, onVestingMain, vestingTerm } =
       await loadFixture(fixture);
@@ -94,24 +120,23 @@ describe("ONVestingMain", function () {
     };
 
     // out: event AddNewVestingContract(index, addr, beneficiary)
-    await expect(await onVestingMain.connect(owner).addVestingTerm(term))
+    await expect(onVestingMain.connect(owner).addVestingTerm(term))
       .to.emit(onVestingMain, "AddNewVestingContract")
       .withArgs(1, anyValue, beneficiary2.address); // anyValue: address of new vesting contract
 
     // Should increment total count
     expect(await onVestingMain.getVestingContractTotal()).to.equal(2);
 
-    expect(await onVestingMain.getVestingContractAddress(0)).to.properAddress;
+    expect(await onVestingMain.getVestingContractAddress(1)).to.properAddress;
   });
 
   it("Should able to get all information from ONVestingSub", async function () {
-    const { vestingTerm, token, getOnVestingSubByIndex, onVestingMain } =
-      await loadFixture(fixture);
+    const { getOnVestingSubByIndex } = await loadFixture(fixture);
 
     const vestingContract = await getOnVestingSubByIndex(0n);
 
-    console.log(await vestingContract.getClaimableBalance());
-    console.log(await vestingContract.getRemainingBalance());
+    expect(await vestingContract.getClaimableBalance()).to.eq(1000n);
+    expect(await vestingContract.getRemainingBalance()).to.eq(1000000n);
   });
 
   it("Should able to claim all token if you are beneficiary and vested", async function () {
@@ -138,7 +163,7 @@ describe("ONVestingMain", function () {
     await vestingContract.claim();
     expect(await token.balanceOf(beneficiary2)).to.eq(vestingTerm.total);
 
-    expect(vestingContract.claim()).to.revertedWithCustomError(
+    await expect(vestingContract.claim()).to.revertedWithCustomError(
       vestingContract,
       "InvalidVestingSchedule"
     );
@@ -171,7 +196,7 @@ describe("ONVestingMain", function () {
 
     // The whole vesting timeline should be correct
     for (
-      let currentTime = timeStart;
+      let currentTime = timeStart + ONE_MONTH;
       currentTime <= timeEnd;
       currentTime += vestingTerm.milestoneDuration
     ) {
@@ -190,19 +215,26 @@ describe("ONVestingMain", function () {
         month: milestone,
         amount: (await token.balanceOf(beneficiary1)) - beforeBalance,
       });
+      if (currentTime < timeEnd) {
+        await expect(vestingContract.claim()).to.revertedWithCustomError(
+          vestingContract,
+          "NoClaimableToken"
+        );
+      }
     }
     expect(await token.balanceOf(beneficiary1)).to.eq(vestingTerm.total);
     console.table(releaseVesting);
 
     // Should not claim more than you have
     await time.increaseTo(timeEnd + ONE_MONTH);
-    expect(vestingContract.claim()).to.revertedWithCustomError(
+
+    await expect(vestingContract.claim()).to.revertedWithCustomError(
       vestingContract,
       "InvalidVestingSchedule"
     );
   });
 
-  it("Should to update all information before TGE", async function () {
+  it("Should alt to update all information before TGE", async function () {
     const { beneficiary2, onVestingMain } = await loadFixture(fixture);
 
     const [information1] = await onVestingMain.getVestingDetailList(0n, 1n);
@@ -217,12 +249,12 @@ describe("ONVestingMain", function () {
       information2.end - information2.start
     );
 
-    expect(await onVestingMain.setImplementation(beneficiary2)).to.emit(
+    await expect(onVestingMain.setImplementation(beneficiary2)).to.emit(
       onVestingMain,
       "SetImplementation"
     );
 
-    expect(await onVestingMain.setTokenAddress(beneficiary2)).to.emit(
+    await expect(onVestingMain.setTokenAddress(beneficiary2)).to.emit(
       onVestingMain,
       "SetTokenAddress"
     );
@@ -230,5 +262,41 @@ describe("ONVestingMain", function () {
     expect(await onVestingMain.getTokenAddress()).to.eq(beneficiary2.address);
     expect(await onVestingMain.getImplementation()).to.eq(beneficiary2.address);
     expect(await onVestingMain.getTimeTGE()).to.eq(newTimeTGE);
+  });
+
+  it("Emergency withdraw should work as expected", async function () {
+    const {
+      vestingTerm,
+      token,
+      beneficiary1,
+      onVestingMain,
+      getOnVestingSubByIndex,
+    } = await loadFixture(fixture);
+
+    const vestingContract = (await getOnVestingSubByIndex(0n)).connect(
+      beneficiary1
+    );
+
+    await expect(vestingContract.emergency()).to.revertedWithCustomError(
+      vestingContract,
+      "TGENotStarted"
+    );
+
+    await time.increaseTo(await onVestingMain.getTimeTGE());
+
+    await expect(vestingContract.emergency()).to.revertedWithCustomError(
+      vestingContract,
+      "UnableToCallEmergency"
+    );
+
+    await time.increaseTo((await vestingContract.getTimeEnd()) + ONE_QUARTER);
+
+    await expect(vestingContract.emergency()).to.emit(
+      vestingContract,
+      "EmergencyWithdrawal"
+    );
+
+    expect(await token.balanceOf(vestingContract)).to.eq(0n);
+    expect(await token.balanceOf(beneficiary1)).to.eq(vestingTerm.total);
   });
 });

@@ -86,6 +86,28 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
     }
 
     /**
+     * If token is vested but stuck in the smart contract
+     * this method allow to withdraw all of them
+     * @dev Only callable after fully vested
+     */
+    function emergency() external nonReentrant onlyPostTGE onlyBeneficiary {
+        if (block.timestamp >= _timeEnd() + schedule.milestoneDuration) {
+            VestingSchedule memory vestingSchedule = schedule;
+            uint256 remaining = _getRemainingBalance();
+            if (_getToken().transfer(beneficiary, remaining)) {
+                vestingSchedule.totalClaimed = remaining;
+                vestingSchedule.milestoneClaimed =
+                    vestingSchedule.vestingDuration /
+                    vestingSchedule.milestoneDuration;
+                schedule = vestingSchedule;
+                emit EmergencyWithdrawal(beneficiary, remaining);
+                return;
+            }
+        }
+        revert UnableToCallEmergency();
+    }
+
+    /**
      * Transfer vesting contract to new owner
      * @param beneficiaryNew New vesting contract owner
      */
@@ -115,7 +137,7 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
         (uint64 milestone, uint256 amount) = _balance();
 
         // Check if there is any claimable token left
-        if (milestone > 0 && milestone == vestingSchedule.milestoneClaimed) {
+        if (amount == 0) {
             revert NoClaimableToken(account, milestone);
         }
 
