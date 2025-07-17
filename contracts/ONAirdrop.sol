@@ -9,8 +9,6 @@ import "./ONInterface.sol";
  * @title Orochi Network Airdrop
  */
 contract ONAirdrop is ReentrancyGuard, Ownable {
-    IONToken private token;
-
     // Main vesting contract address
     IONVestingMain private onVestingMain;
 
@@ -51,9 +49,7 @@ contract ONAirdrop is ReentrancyGuard, Ownable {
      * @param onVestingMainAddress The address of the vesting contract
      */
     constructor(address onVestingMainAddress) {
-        IONVestingMain mainContract = IONVestingMain(onVestingMainAddress);
-        onVestingMain = mainContract;
-        token = IONToken(mainContract.getTokenAddress());
+        onVestingMain = IONVestingMain(onVestingMainAddress);
     }
 
     /*******************************************************
@@ -67,7 +63,7 @@ contract ONAirdrop is ReentrancyGuard, Ownable {
     function claimAirdrop() external nonReentrant onlyPostTGE {
         address beneficiary = msg.sender;
         if (airdrop[beneficiary] > 0) {
-            if (token.transfer(beneficiary, airdrop[beneficiary])) {
+            if (_getToken().transfer(beneficiary, airdrop[beneficiary])) {
                 emit AirdropClaim(beneficiary, airdrop[beneficiary]);
                 airdrop[beneficiary] = 0;
                 return;
@@ -111,5 +107,16 @@ contract ONAirdrop is ReentrancyGuard, Ownable {
      */
     function balanceAirdrop(address account) external view returns (uint256) {
         return airdrop[account];
+    }
+
+    /*******************************************************
+     * Internal View
+     ********************************************************/
+
+    /**
+     * Get ON token instance
+     */
+    function _getToken() internal view returns (IONToken) {
+        return IONToken(onVestingMain.getTokenAddress());
     }
 }

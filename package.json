@@ -5,6 +5,7 @@
   "license": "Apache-2.0",
   "author": "Chiro <chiro@orochi.network>",
   "scripts": {
+    "coverage": "SOLIDITY_COVERAGE=true npx hardhat coverage",
     "compile": "hardhat compile",
     "test": "hardhat test"
   },

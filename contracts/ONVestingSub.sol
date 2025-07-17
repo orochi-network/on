@@ -14,23 +14,8 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
     // Main vesting contract address
     IONVestingMain private onVestingMain;
 
-    // Token contract address
-    IONToken token;
-
     // Schedule of vesting
     VestingSchedule private schedule;
-
-    // Event emitted when token is claimed
-    event TokenClaimed(address beneficiary, uint64 milestone, uint256 amount);
-
-    // Event emitted when token is unlockedAtTGE at TGE
-    event UnlockAtTGE(address beneficiary, uint256 amount);
-
-    // Event transfer a vesting contract
-    event TransferVestingContract(
-        address beneficiaryOld,
-        address beneficiaryNew
-    );
 
     /**
      * @dev Modifier to make sure that the TGE is started
@@ -70,23 +55,20 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
      * Init method
      * @param onVestingMainAddress The address of the main vesting contract
      * @param vestingTerm Vesting term
-     * @param tokenAddress The address of the token contract
      */
     function init(
         address onVestingMainAddress,
-        VestingTerm memory vestingTerm,
-        address tokenAddress
+        VestingTerm memory vestingTerm
     ) external onlyOnce nonReentrant returns (bool) {
         if (
-            tokenAddress == address(0) ||
             onVestingMainAddress == address(0) ||
             vestingTerm.beneficiary == address(0)
         ) {
             revert InvalidAddress();
         }
-        token = IONToken(tokenAddress);
         onVestingMain = IONVestingMain(onVestingMainAddress);
         beneficiary = vestingTerm.beneficiary;
+        emit TransferVestingContract(address(0), vestingTerm.beneficiary);
         _addVestingTerm(vestingTerm);
         return true;
     }
@@ -146,7 +128,7 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
         vestingSchedule.totalClaimed += amount;
         schedule = vestingSchedule;
 
-        if (!token.transfer(account, amount)) {
+        if (!_getToken().transfer(account, amount)) {
             revert UnableToRelease(account, milestone, amount);
         }
 
@@ -161,8 +143,8 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
     function _addVestingTerm(VestingTerm memory term) internal {
         if (term.total == term.unlockedAtTGE) {
             schedule = VestingSchedule({
-                start: uint64(block.timestamp),
-                end: uint64(block.timestamp),
+                cliff: 0,
+                vestingDuration: 0,
                 milestoneDuration: 0,
                 milestoneClaimed: 0,
                 milestoneReleaseAmount: 0,
@@ -174,15 +156,19 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
             return;
         }
 
+        uint64 ONE_MONTH = 2592000;
+
         // Filter invalid terms
         if (
             term.total > term.unlockedAtTGE &&
-            term.start > block.timestamp &&
             term.milestoneDuration > 0 &&
-            term.end >= (term.start + term.milestoneDuration)
+            term.milestoneDuration <= ONE_MONTH * 36 &&
+            term.cliff >= 0 &&
+            term.cliff <= term.vestingDuration &&
+            term.vestingDuration >= term.milestoneDuration
         ) {
             uint256 remaining = term.total - term.unlockedAtTGE;
-            uint256 milestoneTotal = (term.end - term.start) /
+            uint256 milestoneTotal = term.vestingDuration /
                 term.milestoneDuration;
             uint256 milestoneReleaseAmount = remaining / milestoneTotal;
             if (milestoneTotal > 0 && milestoneReleaseAmount > 0) {
@@ -192,8 +178,8 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
                 }
 
                 schedule = VestingSchedule({
-                    start: term.start,
-                    end: term.end,
+                    cliff: term.cliff,
+                    vestingDuration: term.vestingDuration,
                     milestoneDuration: term.milestoneDuration,
                     milestoneClaimed: 0,
                     milestoneReleaseAmount: milestoneReleaseAmount,
@@ -209,6 +195,27 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
     /*******************************************************
      * External View
      ********************************************************/
+
+    /**
+     * Get beneficiary address
+     */
+    function getBeneficiary() external view returns (address) {
+        return beneficiary;
+    }
+
+    /**
+     * Get start of vesting time
+     */
+    function getTimeStart() external view returns (uint64) {
+        return _timeStart();
+    }
+
+    /**
+     * Get end of vesting time
+     */
+    function getTimeEnd() external view returns (uint64) {
+        return _timeEnd();
+    }
 
     /**
      * Claimable token balance of the given account
@@ -234,8 +241,8 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
         VestingDetail memory vestingDetail = VestingDetail({
             contractAddress: address(this),
             beneficiary: beneficiary,
-            start: vestingSchedule.start,
-            end: vestingSchedule.end,
+            start: _timeStart(),
+            end: _timeEnd(),
             milestoneDuration: vestingSchedule.milestoneDuration,
             milestoneClaimed: vestingSchedule.milestoneClaimed,
             milestoneReleaseAmount: vestingSchedule.milestoneReleaseAmount,
@@ -253,10 +260,31 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
      ********************************************************/
 
     /**
+     * Get ON token instance
+     */
+    function _getToken() internal view returns (IONToken) {
+        return IONToken(onVestingMain.getTokenAddress());
+    }
+
+    /**
+     * Start of vesting time
+     */
+    function _timeStart() internal view returns (uint64) {
+        return uint64(onVestingMain.getTimeTGE() + schedule.cliff);
+    }
+
+    /**
+     * End of vesting time
+     */
+    function _timeEnd() internal view returns (uint64) {
+        return _timeStart() + schedule.vestingDuration;
+    }
+
+    /**
      * Vesting balance
      */
     function _getRemainingBalance() internal view returns (uint256) {
-        return token.balanceOf(address(this));
+        return _getToken().balanceOf(address(this));
     }
 
     /**
@@ -280,14 +308,14 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
 
         // Only start vesting
         if (
-            block.timestamp >= vestingSchedule.start &&
+            block.timestamp >= _timeStart() &&
             vestingSchedule.milestoneDuration > 0
         ) {
             // Calculate total milestones
-            uint64 milestoneTotal = (vestingSchedule.end -
-                vestingSchedule.start) / vestingSchedule.milestoneDuration;
+            uint64 milestoneTotal = vestingSchedule.vestingDuration /
+                vestingSchedule.milestoneDuration;
 
-            milestone = ((uint64(block.timestamp) - vestingSchedule.start) /
+            milestone = ((uint64(block.timestamp) - _timeStart()) /
                 vestingSchedule.milestoneDuration);
             // Milestone can't be greater than total milestones
             milestone = milestone >= milestoneTotal

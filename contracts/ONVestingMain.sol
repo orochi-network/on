@@ -14,36 +14,19 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
     using Clones for address;
 
     // Token contract address
-    IONToken token;
+    IONToken private token;
 
     // TGE time
     uint256 private timeTGE;
 
+    // Based implementation of ON Vesting Sub
     address private onVestingSub;
 
     // Total number of vesting contract
     uint256 private vestingContractTotal;
 
     // Mapping from index to vesting contract address
-    mapping(uint256 => address) vestingContractMap;
-
-    // Event emitted when new vesting contract was created
-    event AddNewVestingContract(
-        uint256 indexed vestingContractTotal,
-        address indexed newVestingContract,
-        address indexed beneficiary
-    );
-
-    /**
-     * @dev Modifier to make sure that the TGE is started
-     */
-    modifier onlyPostTGE() {
-        // It's require isTGE to be true to move one
-        if (!_isTGE()) {
-            revert TGENotStarted();
-        }
-        _;
-    }
+    mapping(uint256 => address) private vestingContractMap;
 
     /**
      * @dev Modifier to make sure that the TGE is not started yet
@@ -67,16 +50,43 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
     constructor(
         address tokenAddress,
         uint256 timestampTGE,
-        address onVestingSubImplementation
+        address onVestingSubImpl
     ) Ownable() {
-        token = IONToken(tokenAddress);
-        timeTGE = timestampTGE;
-        onVestingSub = onVestingSubImplementation;
+        _seTokenAddress(tokenAddress);
+        _setImplementation(onVestingSubImpl);
+        _setTimeTGE(timestampTGE);
     }
 
     /*******************************************************
-     * Owner Pre TGE
+     * External Owner
      ********************************************************/
+
+    /**
+     * Set ONToken address
+     */
+    function setTokenAddress(
+        address tokenAddress
+    ) external onlyOwner nonReentrant onlyPreTGE {
+        _seTokenAddress(tokenAddress);
+    }
+
+    /**
+     * Set ONVestingSub implementation
+     */
+    function setImplementation(
+        address onVestingSubImpl
+    ) external onlyOwner nonReentrant onlyPreTGE {
+        _setImplementation(onVestingSubImpl);
+    }
+
+    /**
+     * Set TGE time
+     */
+    function setTimeTGE(
+        uint256 timestampTGE
+    ) external onlyOwner nonReentrant onlyPreTGE {
+        _setTimeTGE(timestampTGE);
+    }
 
     /**
      * Mint maxium supply to this contract
@@ -102,8 +112,7 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
         if (
             IONVestingSub(newVestingContract).init(
                 address(this),
-                vestingTerm,
-                address(token)
+                vestingTerm
             ) && token.transfer(newVestingContract, vestingTerm.total)
         ) {
             emit AddNewVestingContract(
@@ -118,8 +127,55 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
     }
 
     /*******************************************************
+     * Internal
+     ********************************************************/
+
+    /**
+     * Set ONVestingSub implementation address
+     * @param onVestingSubImpl Address of ONVestingSub implementation
+     */
+    function _setImplementation(address onVestingSubImpl) internal {
+        if (onVestingSubImpl == address(0)) {
+            revert InvalidAddress();
+        }
+        onVestingSub = onVestingSubImpl;
+        emit SetImplementation(onVestingSubImpl);
+    }
+
+    /**
+     * Set ONToken address
+     * @param onTokenAddress On token addresss
+     */
+    function _seTokenAddress(address onTokenAddress) internal {
+        if (onTokenAddress == address(0)) {
+            revert InvalidAddress();
+        }
+        token = IONToken(onTokenAddress);
+        emit SetTokenAddress(onTokenAddress);
+    }
+
+    /**
+     * Set the TGE time
+     * @param timestampTGE Timestamp of the TGE
+     */
+    function _setTimeTGE(uint256 timestampTGE) internal {
+        if (timestampTGE <= block.timestamp) {
+            revert TGETimeMustBeInTheFuture(timestampTGE);
+        }
+        timeTGE = timestampTGE;
+        emit SetTimeTGE(timestampTGE);
+    }
+
+    /*******************************************************
      * External View
      ********************************************************/
+
+    /**
+     * Get ONVestingSub implementation address
+     */
+    function getImplementation() external view returns (address) {
+        return address(onVestingSub);
+    }
 
     /**
      * Get token address

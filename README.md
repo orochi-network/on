@@ -7,7 +7,7 @@ The Orochi Network Token ($ON) and its vesting contract are designed to ensure t
 Build the image
 
 ```txt
-docker build --no-cache -t localnode:latest .
+docker build  --progress plain --no-cache -t localnode:latest .
 
 ```
 
