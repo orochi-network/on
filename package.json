@@ -35,6 +35,6 @@
   "dependencies": {
     "@openzeppelin/contracts": "4.9.6",
     "@openzeppelin/contracts-upgradeable": "4.9.6",
-    "dotenv": "^16.5.0"
+    "dotenv": "^17.2.0"
   }
 }
