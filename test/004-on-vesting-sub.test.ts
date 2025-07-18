@@ -143,4 +143,16 @@ describe("ONVestingSub", function () {
       onVestingSub.init(onVestingMain, newVestingTerm)
     ).to.revertedWithCustomError(onVestingSub, "InvalidAddress");
   });
+
+  it("Should not able transfer vesting contract if you are not beneficiary", async function () {
+    const { getOnVestingSubByIndex, anyOne, beneficiary1 } = await loadFixture(
+      fixture
+    );
+
+    const vestingContract = await getOnVestingSubByIndex(0n);
+
+    await expect(
+      vestingContract.connect(anyOne).transferVestingContract(beneficiary1)
+    ).to.revertedWithCustomError(vestingContract, "InvalidBeneficiary");
+  });
 });

@@ -17,6 +17,7 @@ contract ONAirdrop is ReentrancyGuard, Ownable {
 
     // Event emitted when airdrop is claimed
     event AirdropClaim(address account, uint256 amount);
+    event AirdropAdd(address account, uint256 amount);
 
     /**
      * @dev Modifier to make sure that the TGE is started
@@ -62,14 +63,13 @@ contract ONAirdrop is ReentrancyGuard, Ownable {
      */
     function claimAirdrop() external nonReentrant onlyPostTGE {
         address beneficiary = msg.sender;
-        if (airdrop[beneficiary] > 0) {
-            if (_getToken().transfer(beneficiary, airdrop[beneficiary])) {
-                emit AirdropClaim(beneficiary, airdrop[beneficiary]);
-                airdrop[beneficiary] = 0;
-                return;
-            }
+        uint256 amount = airdrop[beneficiary];
+        if (amount > 0 && _getToken().transfer(beneficiary, amount)) {
+            emit AirdropClaim(beneficiary, amount);
+            airdrop[beneficiary] = 0;
+            return;
         }
-        revert UnableToAirdropToken(beneficiary, airdrop[beneficiary]);
+        revert UnableToAirdropToken(beneficiary, amount);
     }
 
     /*******************************************************
@@ -94,6 +94,7 @@ contract ONAirdrop is ReentrancyGuard, Ownable {
         }
         for (uint256 i = 0; i < beneficaryList.length; i += 1) {
             airdrop[beneficaryList[i]] += amountList[i];
+            emit AirdropAdd(beneficaryList[i], amountList[i]);
         }
     }
 

@@ -1,7 +1,7 @@
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
-import { ZeroAddress } from "ethers";
+import { parseEther, ZeroAddress } from "ethers";
 import hre from "hardhat";
 import { ONVestingSub } from "../typechain-types";
 import { VestingTermStruct } from "../typechain-types/contracts/ONInterface.sol/IONVestingSub";
@@ -258,5 +258,77 @@ describe("ONVestingMain", function () {
     await expect(
       onVestingMain.setTimeTGE(blockTimestamp - 10n)
     ).to.revertedWithCustomError(onVestingMain, "TGETimeMustBeInTheFuture");
+  });
+
+  it("Should not able to transfer invalid token", async function () {
+    const {
+      token,
+      beneficiary1,
+      onVestingMain,
+      vestingTerm,
+      getOnVestingSubByIndex,
+      anyOne,
+    } = await loadFixture(fixture);
+
+    const MockTokenNoTransfer = await hre.ethers.getContractFactory(
+      "MockTokenNoTransfer"
+    );
+    const mockToken = await MockTokenNoTransfer.deploy(token);
+    await mockToken.deploymentTransaction();
+
+    await onVestingMain.setTokenAddress(mockToken);
+
+    await onVestingMain.transfer(beneficiary1, parseEther("100"));
+  });
+
+  it("Should not able call if not owner", async function () {
+    const {
+      beneficiary1,
+      onVestingMain,
+      getOnVestingSubByIndex,
+      anyOne,
+      blockTimestamp,
+    } = await loadFixture(fixture);
+
+    const vestingMainFakeOwner = await onVestingMain.connect(anyOne);
+
+    await expect(vestingMainFakeOwner.mint()).to.revertedWith(
+      "Ownable: caller is not the owner"
+    );
+
+    await expect(
+      vestingMainFakeOwner.transfer(beneficiary1, parseEther("100"))
+    ).to.revertedWith("Ownable: caller is not the owner");
+
+    await expect(
+      vestingMainFakeOwner.setTokenAddress(beneficiary1)
+    ).to.revertedWith("Ownable: caller is not the owner");
+
+    await expect(
+      vestingMainFakeOwner.setImplementation(beneficiary1)
+    ).to.revertedWith("Ownable: caller is not the owner");
+
+    await expect(
+      vestingMainFakeOwner.setTimeTGE(blockTimestamp)
+    ).to.revertedWith("Ownable: caller is not the owner");
+
+    await time.increaseTo(await onVestingMain.getTimeTGE());
+
+    await expect(
+      onVestingMain.setTokenAddress(beneficiary1)
+    ).to.revertedWithCustomError(onVestingMain, "TGEAlreadyStarted");
+
+    await expect(
+      onVestingMain.setImplementation(beneficiary1)
+    ).to.to.revertedWithCustomError(onVestingMain, "TGEAlreadyStarted");
+
+    await expect(
+      onVestingMain.setTimeTGE(blockTimestamp)
+    ).to.to.revertedWithCustomError(onVestingMain, "TGEAlreadyStarted");
+
+    await expect(onVestingMain.mint()).to.to.revertedWithCustomError(
+      onVestingMain,
+      "TGEAlreadyStarted"
+    );
   });
 });
