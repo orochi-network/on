@@ -269,6 +269,7 @@ describe("ONVestingMain", function () {
       vestingTerm,
       token,
       beneficiary1,
+      anyOne,
       onVestingMain,
       getOnVestingSubByIndex,
     } = await loadFixture(fixture);
@@ -290,6 +291,10 @@ describe("ONVestingMain", function () {
     );
 
     await time.increaseTo((await vestingContract.getTimeEnd()) + ONE_QUARTER);
+
+    await expect(
+      vestingContract.connect(anyOne).emergency()
+    ).to.revertedWithCustomError(vestingContract, "InvalidBeneficiary");
 
     await expect(vestingContract.emergency()).to.emit(
       vestingContract,
