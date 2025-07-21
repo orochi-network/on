@@ -2,6 +2,7 @@ import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { parseEther } from "ethers";
 import { task } from "hardhat/config";
 import { expect } from "chai";
+import { VestingTermStruct } from "../typechain-types/contracts/ONVestingMain";
 
 const ONE_MIN = 60n;
 
@@ -38,16 +39,16 @@ task("deploy", "Deploy the OrochiNetworkToken contract").setAction(
 
     await onVestingMain.mint();
 
-    const start = timeTGE + ONE_MIN * 3n;
+    const cliff = ONE_MIN * 3n;
 
-    const end = start + ONE_MIN * 12n;
+    const vestingDuration = ONE_MIN * 12n;
 
-    const vestingTerm = {
+    const vestingTerm: VestingTermStruct = {
       beneficiary: beneficiary,
       unlockedAtTGE: parseEther("1000"),
       milestoneDuration: ONE_MIN,
-      start,
-      end,
+      cliff,
+      vestingDuration,
       total: parseEther("1000000"),
     };
 
