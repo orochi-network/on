@@ -35,6 +35,11 @@ task("deploy", "Deploy the OrochiNetworkToken contract").setAction(
       onVestingSubImpl
     );
 
+    // Deploy AirDrop
+    const ONAirdrop = await hre.ethers.getContractFactory("ONAirdrop");
+    const onAirdrop = await ONAirdrop.connect(deployer).deploy(onVestingMain);
+    await onAirdrop.waitForDeployment();
+
     await token.transferOwnership(onVestingMain);
 
     await onVestingMain.mint();
@@ -53,9 +58,14 @@ task("deploy", "Deploy the OrochiNetworkToken contract").setAction(
     };
 
     // out: event AddNewVestingContract(index, addr, beneficiary)
-    await expect(onVestingMain.connect(deployer).addVestingTerm(vestingTerm))
+    await expect(onVestingMain.addVestingTerm(vestingTerm))
       .to.emit(onVestingMain, "AddNewVestingContract")
       .withArgs(0, anyValue, beneficiary.address);
+
+    // Transfer token to airdrop
+    await onVestingMain.transfer(onAirdrop, parseEther("20000000"));
+
+    await onAirdrop.addUserToAirdrop([beneficiary], [parseEther("1000")]);
 
     console.table([
       {
@@ -65,6 +75,10 @@ task("deploy", "Deploy the OrochiNetworkToken contract").setAction(
       {
         contractName: "Beneficiary",
         address: beneficiary.address,
+      },
+      {
+        contractName: "Orochi Network Airdrop",
+        address: await onAirdrop.getAddress(),
       },
       {
         contractName: "Orochi Network Token",
