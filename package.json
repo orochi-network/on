@@ -33,6 +33,7 @@
     "viem": "^2.31.7"
   },
   "dependencies": {
+    "@fast-csv/parse": "^5.0.2",
     "@openzeppelin/contracts": "4.9.6",
     "@openzeppelin/contracts-upgradeable": "4.9.6",
     "dotenv": "^17.2.0"
