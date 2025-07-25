@@ -4,6 +4,8 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { zeroAddress } from "viem";
 import { ONVestingSub } from "../typechain-types";
+import { on } from "events";
+import { ZeroAddress } from "ethers";
 
 const ONE_DAY = BigInt(24 * 60 * 60);
 const ONE_MONTH = ONE_DAY * 30n;
@@ -154,5 +156,55 @@ describe("ONVestingSub", function () {
     await expect(
       vestingContract.connect(anyOne).transferVestingContract(beneficiary1)
     ).to.revertedWithCustomError(vestingContract, "InvalidBeneficiary");
+  });
+
+
+  it("Should not able transfer vesting contract to zero-address", async function () {
+    const { getOnVestingSubByIndex, beneficiary1 } = await loadFixture(
+      fixture
+    );
+
+    const vestingContract = await getOnVestingSubByIndex(0n);
+
+    await expect(
+      vestingContract.connect(beneficiary1).transferVestingContract(zeroAddress)
+    ).to.revertedWithCustomError(vestingContract, "InvalidBeneficiary");
+
+    await expect(
+      vestingContract.connect(beneficiary1).transferVestingContract(beneficiary1)
+    ).to.revertedWithCustomError(vestingContract, "InvalidBeneficiary");
+  });
+
+  it("Should not able init with zero addresses", async function () {
+    const { onVestingSubImpl, onVestingMain, vestingTerm, beneficiary2 } = await loadFixture(
+      fixture
+    );
+
+    await expect(onVestingSubImpl.init(ZeroAddress, {
+      ...vestingTerm,
+      beneficiary: beneficiary2.address,
+    })).to.revertedWithCustomError(onVestingSubImpl, "InvalidAddress");
+
+    await expect(onVestingSubImpl.init(onVestingMain, {
+      ...vestingTerm,
+      beneficiary: ZeroAddress,
+    })).to.revertedWithCustomError(onVestingSubImpl, "InvalidAddress");
+  });
+
+  it("Should able to init contract manualy", async function () {
+    const { onVestingSubImpl, onVestingMain, vestingTerm, beneficiary2 } = await loadFixture(
+      fixture
+    );
+
+
+
+    const term = {
+      ...vestingTerm,
+      beneficiary: beneficiary2.address,
+
+    };
+    await onVestingMain.transfer(onVestingSubImpl, term.total);
+    await onVestingSubImpl.init(onVestingMain, term)
+
   });
 });

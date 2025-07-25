@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.26;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./ONInterface.sol";
 
 /**
@@ -16,6 +16,8 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
 
     // Schedule of vesting
     VestingSchedule private schedule;
+
+    uint64 immutable MAX_MILESTONE_DURATION = (24 * 60 * 60 * 30) * 6; // 6 months
 
     /**
      * @dev Modifier to make sure that the TGE is started
@@ -114,6 +116,9 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
     function transferVestingContract(
         address beneficiaryNew
     ) external nonReentrant onlyBeneficiary {
+        if (beneficiaryNew == address(0) || beneficiaryNew == beneficiary) {
+            revert InvalidBeneficiary(beneficiaryNew);
+        }
         emit TransferVestingContract(beneficiary, beneficiaryNew);
         beneficiary = beneficiaryNew;
     }
@@ -178,13 +183,11 @@ contract ONVestingSub is IONVestingSub, ReentrancyGuard {
             return;
         }
 
-        uint64 ONE_MONTH = 2592000;
-
         // Filter invalid terms
         if (
             term.total > term.unlockedAtTGE &&
             term.milestoneDuration > 0 &&
-            term.milestoneDuration <= ONE_MONTH * 36 &&
+            term.milestoneDuration <= MAX_MILESTONE_DURATION &&
             term.cliff >= 0 &&
             term.cliff <= term.vestingDuration &&
             term.vestingDuration >= term.milestoneDuration

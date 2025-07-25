@@ -98,7 +98,10 @@ describe("ONVestingMain", function () {
     // out: event AddNewVestingContract(index, addr, beneficiary)
     await expect(
       onVestingMain.connect(anyOne).addVestingTerm(term)
-    ).to.revertedWith("Ownable: caller is not the owner");
+    ).to.be.revertedWithCustomError(
+      onVestingMain, 'OwnableUnauthorizedAccount'
+    );
+
   });
 
   it("Should not able to add an invalid vesting term", async function () {
@@ -247,8 +250,9 @@ describe("ONVestingMain", function () {
 
     await onVestingMain.setTokenAddress(token);
 
-    await expect(onVestingMain.addVestingTerm(vestingTerm)).to.revertedWith(
-      "ERC20: transfer amount exceeds balance"
+    await expect(onVestingMain.addVestingTerm(vestingTerm)).to.revertedWithCustomError(
+      token,
+      "ERC20InsufficientBalance"
     );
   });
 
@@ -265,9 +269,6 @@ describe("ONVestingMain", function () {
       token,
       beneficiary1,
       onVestingMain,
-      vestingTerm,
-      getOnVestingSubByIndex,
-      anyOne,
     } = await loadFixture(fixture);
 
     const MockTokenNoTransfer = await hre.ethers.getContractFactory(
@@ -278,7 +279,7 @@ describe("ONVestingMain", function () {
 
     await onVestingMain.setTokenAddress(mockToken);
 
-    await onVestingMain.transfer(beneficiary1, parseEther("100"));
+    await expect(onVestingMain.transfer(beneficiary1, parseEther("100"))).to.revertedWithCustomError(onVestingMain, 'UnableToTransfer');
   });
 
   it("Should not able call if not owner", async function () {
@@ -292,25 +293,33 @@ describe("ONVestingMain", function () {
 
     const vestingMainFakeOwner = await onVestingMain.connect(anyOne);
 
-    await expect(vestingMainFakeOwner.mint()).to.revertedWith(
-      "Ownable: caller is not the owner"
+    await expect(vestingMainFakeOwner.mint()).to.revertedWithCustomError(vestingMainFakeOwner,
+      'OwnableUnauthorizedAccount'
     );
 
     await expect(
       vestingMainFakeOwner.transfer(beneficiary1, parseEther("100"))
-    ).to.revertedWith("Ownable: caller is not the owner");
+    ).to.revertedWithCustomError(vestingMainFakeOwner,
+      'OwnableUnauthorizedAccount'
+    );
 
     await expect(
       vestingMainFakeOwner.setTokenAddress(beneficiary1)
-    ).to.revertedWith("Ownable: caller is not the owner");
+    ).to.revertedWithCustomError(vestingMainFakeOwner,
+      'OwnableUnauthorizedAccount'
+    );
 
     await expect(
       vestingMainFakeOwner.setImplementation(beneficiary1)
-    ).to.revertedWith("Ownable: caller is not the owner");
+    ).to.revertedWithCustomError(vestingMainFakeOwner,
+      'OwnableUnauthorizedAccount'
+    );
 
     await expect(
       vestingMainFakeOwner.setTimeTGE(blockTimestamp)
-    ).to.revertedWith("Ownable: caller is not the owner");
+    ).to.revertedWithCustomError(vestingMainFakeOwner,
+      'OwnableUnauthorizedAccount'
+    );
 
     await time.increaseTo(await onVestingMain.getTimeTGE());
 

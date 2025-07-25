@@ -4,7 +4,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { ONVestingSub } from "../typechain-types";
 import { VestingTermStruct } from "../typechain-types/contracts/ONInterface.sol/IONVestingSub";
-import { parseEther } from "ethers";
+import { parseEther, ZeroAddress } from "ethers";
 
 const ONE_DAY = BigInt(24 * 60 * 60);
 const ONE_MONTH = ONE_DAY * 30n;
@@ -69,6 +69,8 @@ describe("ONVestingMain", function () {
       ) as ONVestingSub;
     };
     return {
+      Token,
+      ONVestingMain,
       vestingTerm,
       owner,
       beneficiary1,
@@ -82,6 +84,30 @@ describe("ONVestingMain", function () {
       getOnVestingSubByIndex,
     };
   }
+
+  it("ONVestingMain should able to mint token", async function () {
+    const { ONVestingMain, Token, blockTimestamp, onVestingSubImpl, owner } = await loadFixture(fixture);
+
+    // Deploy a mock token
+    const token = await Token.deploy("Orochi", "ON");
+    await token.waitForDeployment();
+
+    // Deploy a minimal ONVestingMain with suitable constructor args
+    const onVestingMain = await ONVestingMain.connect(owner).deploy(
+      token,
+      blockTimestamp + ONE_DAY,
+      onVestingSubImpl
+    );
+    await onVestingMain.waitForDeployment();
+
+    await token.transferOwnership(onVestingMain);
+
+    await expect(onVestingMain.connect(owner).mint())
+      .to.emit(token, "Transfer")
+      .withArgs(ZeroAddress, await onVestingMain.getAddress(), parseEther("700000000"));
+
+    await expect(onVestingMain.connect(owner).mint()).to.revertedWith('ON: Max supply is minted');
+  });
 
   it("Should add a vesting term with zero unlocked at TGE", async function () {
     const { owner, beneficiary2, onVestingMain } = await loadFixture(fixture);
@@ -303,5 +329,18 @@ describe("ONVestingMain", function () {
 
     expect(await token.balanceOf(vestingContract)).to.eq(0n);
     expect(await token.balanceOf(beneficiary1)).to.eq(vestingTerm.total);
+  });
+
+  it("Should able to get all vesting detail if limit is too big", async function () {
+    const { onVestingMain } = await loadFixture(fixture);
+
+    const vestingDetailList = await onVestingMain.getVestingDetailList(0n, 100n);
+
+    expect(vestingDetailList.length).to.eq(1);
+
+    await expect(onVestingMain.getVestingDetailList(0n, 0n)).to.revertedWithCustomError(
+      onVestingMain,
+      "InvalidOffsetOrLimit"
+    );
   });
 });

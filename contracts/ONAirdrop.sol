@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.26;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./ONInterface.sol";
+import {IONToken, IONVestingMain, TGENotStarted, TGEAlreadyStarted, UnableToAirdropToken, BeneficiaryAmountMismatch} from "./ONInterface.sol";
 
 /**
  * @title Orochi Network Airdrop
@@ -17,7 +17,9 @@ contract ONAirdrop is ReentrancyGuard, Ownable {
 
     // Event emitted when airdrop is claimed
     event AirdropClaim(address account, uint256 amount);
-    event AirdropAdd(address account, uint256 amount);
+
+    // Event emitted when airdrop is add
+    event AirdropAdded(address account, uint256 amount);
 
     /**
      * @dev Modifier to make sure that the TGE is started
@@ -49,7 +51,7 @@ contract ONAirdrop is ReentrancyGuard, Ownable {
      * Constructor
      * @param onVestingMainAddress The address of the vesting contract
      */
-    constructor(address onVestingMainAddress) {
+    constructor(address onVestingMainAddress) Ownable(msg.sender) {
         onVestingMain = IONVestingMain(onVestingMainAddress);
     }
 
@@ -93,8 +95,10 @@ contract ONAirdrop is ReentrancyGuard, Ownable {
             );
         }
         for (uint256 i = 0; i < beneficaryList.length; i += 1) {
-            airdrop[beneficaryList[i]] += amountList[i];
-            emit AirdropAdd(beneficaryList[i], amountList[i]);
+            if (beneficaryList[i] != address(0) && amountList[i] > 0) {
+                airdrop[beneficaryList[i]] += amountList[i];
+                emit AirdropAdded(beneficaryList[i], amountList[i]);
+            }
         }
     }
 

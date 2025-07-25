@@ -13,7 +13,10 @@ contract OrochiNetworkToken is ERC20, Ownable {
      * @param name Token name
      * @param symbol Token symbol
      */
-    constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
+    constructor(
+        string memory name,
+        string memory symbol
+    ) ERC20(name, symbol) Ownable(msg.sender) {}
 
     /*******************************************************
      * Owner
