@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {TGEAlreadyStarted, IONVestingMain, IONToken, InvalidOffsetOrLimit, VestingTerm, VestingDetail, UnableToTransfer, IONVestingSub, UnableToAddNewVestingContract, InvalidAddress, TGETimeMustBeInTheFuture, IONVestingSub} from "./ONInterface.sol";
 
@@ -51,7 +51,7 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
         address tokenAddress,
         uint256 timestampTGE,
         address onVestingSubImpl
-    ) Ownable() {
+    ) Ownable(msg.sender) {
         _setTokenAddress(tokenAddress);
         _setImplementation(onVestingSubImpl);
         _setTimeTGE(timestampTGE);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.26;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {IONToken, IONVestingMain, TGENotStarted, TGEAlreadyStarted, UnableToAirdropToken, BeneficiaryAmountMismatch} from "./ONInterface.sol";
 
@@ -51,7 +51,7 @@ contract ONAirdrop is ReentrancyGuard, Ownable {
      * Constructor
      * @param onVestingMainAddress The address of the vesting contract
      */
-    constructor(address onVestingMainAddress) {
+    constructor(address onVestingMainAddress) Ownable(msg.sender) {
         onVestingMain = IONVestingMain(onVestingMainAddress);
     }
 

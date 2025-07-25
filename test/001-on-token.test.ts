@@ -46,8 +46,8 @@ describe("OrochiNetworkToken", function () {
 
   it("Non-owner cannot mint tokens", async function () {
     const { token, addr1 } = await loadFixture(deployTokenFixture);
-    await expect(token.connect(addr1).mint()).to.be.revertedWith(
-      "Ownable: caller is not the owner"
+    await expect(token.connect(addr1).mint()).to.be.revertedWithCustomError(
+      token, 'OwnableUnauthorizedAccount'
     );
   });
 
