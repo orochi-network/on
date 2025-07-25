@@ -1,0 +1,35 @@
+name: 'Verify commit is signed or not when making a PR'
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  check-gpg:
+    runs-on: [self-hosted, linux]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch (main)
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+
+      - name: Check commit signatures
+        run: |
+          COMMITS=$(git rev-list ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+          for COMMIT in $COMMITS; do
+            SIG=$(git log --format='%G?' -n 1 "$COMMIT")
+            echo "Commit $COMMIT signature type: $SIG"
+
+            if [[ "$SIG" != "G" && "$SIG" != "U" && "$SIG" != "Y" && "$SIG" != "R" && "$SIG" != "S" && "$SIG" != "E" ]]; then
+              echo "Commit $COMMIT is not signed!"
+              exit 1
+            fi
+          done
