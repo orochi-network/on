@@ -16,6 +16,7 @@ error InvalidBeneficiary(address beneficiary);
 error BeneficiaryAmountMismatch(uint256 beneficaryList, uint256 amountList);
 error TGETimeMustBeInTheFuture(uint256 timestamp);
 error UnableToCallEmergency();
+error InvalidOffsetOrLimit(uint256 offset, uint256 limit);
 
 error BeneficiaryAlreadyAdded(address account);
 error UnableToTransferVestingContract(

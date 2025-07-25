@@ -155,4 +155,20 @@ describe("ONVestingSub", function () {
       vestingContract.connect(anyOne).transferVestingContract(beneficiary1)
     ).to.revertedWithCustomError(vestingContract, "InvalidBeneficiary");
   });
+
+
+  it("Should not able transfer vesting contract to zero-address", async function () {
+    const { getOnVestingSubByIndex, beneficiary1 } = await loadFixture(
+      fixture
+    );
+
+    const vestingContract = await getOnVestingSubByIndex(0n);
+
+    await expect(
+      vestingContract.connect(beneficiary1).transferVestingContract(zeroAddress)
+    ).to.revertedWithCustomError(vestingContract, "InvalidBeneficiary");
+    await expect(
+      vestingContract.connect(beneficiary1).transferVestingContract(beneficiary1)
+    ).to.revertedWithCustomError(vestingContract, "InvalidBeneficiary");
+  });
 });

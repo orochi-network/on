@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./ONInterface.sol";
+import {TGEAlreadyStarted, IONVestingMain, IONToken, InvalidOffsetOrLimit, VestingTerm, VestingDetail, IONVestingSub, UnableToAddNewVestingContract, InvalidAddress, TGETimeMustBeInTheFuture, IONVestingSub} from "./ONInterface.sol";
 
 /**
  * @title Orochi Network Token
@@ -52,7 +52,7 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
         uint256 timestampTGE,
         address onVestingSubImpl
     ) Ownable() {
-        _seTokenAddress(tokenAddress);
+        _setTokenAddress(tokenAddress);
         _setImplementation(onVestingSubImpl);
         _setTimeTGE(timestampTGE);
     }
@@ -79,7 +79,7 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
     function setTokenAddress(
         address tokenAddress
     ) external onlyOwner nonReentrant onlyPreTGE {
-        _seTokenAddress(tokenAddress);
+        _setTokenAddress(tokenAddress);
     }
 
     /**
@@ -158,7 +158,7 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
      * Set ONToken address
      * @param onTokenAddress On token addresss
      */
-    function _seTokenAddress(address onTokenAddress) internal {
+    function _setTokenAddress(address onTokenAddress) internal {
         if (onTokenAddress == address(0)) {
             revert InvalidAddress();
         }
@@ -212,9 +212,17 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
         uint256 offset,
         uint256 limit
     ) external view returns (VestingDetail[] memory) {
-        VestingDetail[] memory vestingDetailList = new VestingDetail[](limit);
         uint256 end = offset + limit;
-
+        if (end > vestingContractTotal) {
+            end = vestingContractTotal;
+        }
+        uint256 recordCount = end - offset;
+        if (recordCount <= 0) {
+            revert InvalidOffsetOrLimit(offset, limit);
+        }
+        VestingDetail[] memory vestingDetailList = new VestingDetail[](
+            recordCount
+        );
         for (uint i = offset; i < end; i += 1) {
             vestingDetailList[i] = IONVestingSub(vestingContractMap[i])
                 .getVestingDetail();

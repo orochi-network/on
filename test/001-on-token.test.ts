@@ -8,13 +8,16 @@ describe("OrochiNetworkToken", function () {
     const [owner, addr1, addr2]: Signer[] = await hre.ethers.getSigners();
     const Token = await hre.ethers.getContractFactory("OrochiNetworkToken");
     const token = await Token.deploy("Orochi Token", "ON");
-    return { token, owner, addr1, addr2 };
+    await token.waitForDeployment();
+    return { Token, token, owner, addr1, addr2 };
   }
 
   it("Should have the correct name and symbol", async function () {
-    const { token } = await loadFixture(deployTokenFixture);
-    expect(await token.name()).to.equal("Orochi Token");
-    expect(await token.symbol()).to.equal("ON");
+    const { Token } = await loadFixture(deployTokenFixture);
+    const token1 = await Token.deploy("Orochi Token", "ON");
+    await token1.waitForDeployment();
+    expect(await token1.name()).to.equal("Orochi Token");
+    expect(await token1.symbol()).to.equal("ON");
   });
 
   it("Owner can mint tokens", async function () {
