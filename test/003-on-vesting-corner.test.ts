@@ -265,9 +265,6 @@ describe("ONVestingMain", function () {
       token,
       beneficiary1,
       onVestingMain,
-      vestingTerm,
-      getOnVestingSubByIndex,
-      anyOne,
     } = await loadFixture(fixture);
 
     const MockTokenNoTransfer = await hre.ethers.getContractFactory(
@@ -278,7 +275,7 @@ describe("ONVestingMain", function () {
 
     await onVestingMain.setTokenAddress(mockToken);
 
-    await onVestingMain.transfer(beneficiary1, parseEther("100"));
+    await expect(onVestingMain.transfer(beneficiary1, parseEther("100"))).to.revertedWithCustomError(onVestingMain, 'UnableToTransfer');
   });
 
   it("Should not able call if not owner", async function () {

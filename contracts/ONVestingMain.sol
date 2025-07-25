@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import {TGEAlreadyStarted, IONVestingMain, IONToken, InvalidOffsetOrLimit, VestingTerm, VestingDetail, IONVestingSub, UnableToAddNewVestingContract, InvalidAddress, TGETimeMustBeInTheFuture, IONVestingSub} from "./ONInterface.sol";
+import {TGEAlreadyStarted, IONVestingMain, IONToken, InvalidOffsetOrLimit, VestingTerm, VestingDetail, UnableToTransfer, IONVestingSub, UnableToAddNewVestingContract, InvalidAddress, TGETimeMustBeInTheFuture, IONVestingSub} from "./ONInterface.sol";
 
 /**
  * @title Orochi Network Token
@@ -70,7 +70,9 @@ contract ONVestingMain is IONVestingMain, ReentrancyGuard, Ownable {
     ) external onlyOwner nonReentrant {
         if (token.transfer(to, value)) {
             emit TransferToken(to, value);
+            return;
         }
+        revert UnableToTransfer(to, value);
     }
 
     /**
