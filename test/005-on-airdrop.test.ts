@@ -53,7 +53,7 @@ describe("ONAirdrop", function () {
 
     await onVestingMain.transfer(onAirdrop, parseEther("20000000"));
 
-    await onAirdrop.addUserToAirdrop([receiver1], [parseEther("1234")]);
+    await onAirdrop.addRecipient([receiver1], [parseEther("1234")]);
 
     return {
       owner,
@@ -71,29 +71,29 @@ describe("ONAirdrop", function () {
 
     time.increaseTo(await onVestingMain.getTimeTGE());
 
-    expect(await onAirdrop.balanceAirdrop(receiver1)).to.eq(parseEther("1234"));
+    expect(await onAirdrop.getAirdropBalance(receiver1)).to.eq(parseEther("1234"));
 
-    await expect(onAirdrop.connect(receiver1).claimAirdrop()).to.emit(
+    await expect(onAirdrop.connect(receiver1).claim()).to.emit(
       onAirdrop,
-      "AirdropClaim"
+      "AirdropClaimed"
     );
 
     await expect(
-      onAirdrop.connect(receiver1).claimAirdrop()
-    ).to.revertedWithCustomError(onAirdrop, "UnableToAirdropToken");
+      onAirdrop.connect(receiver1).claim()
+    ).to.revertedWithCustomError(onAirdrop, "AirdropTransferFailed");
 
-    expect(await onAirdrop.balanceAirdrop(receiver1)).to.eq(0n);
+    expect(await onAirdrop.getAirdropBalance(receiver1)).to.eq(0n);
   });
 
   it("Should able to add new airdrop if length mistmatch", async function () {
     const { receiver2, onAirdrop } = await loadFixture(fixture);
     await expect(
-      onAirdrop.addUserToAirdrop(
+      onAirdrop.addRecipient(
         [receiver2],
         [parseEther("445"), parseEther("657")]
       )
     )
-      .to.revertedWithCustomError(onAirdrop, "BeneficiaryAmountMismatch")
+      .to.revertedWithCustomError(onAirdrop, "RecipientAmountLengthMismatch")
       .withArgs(1n, 2n);
   });
 
@@ -102,7 +102,7 @@ describe("ONAirdrop", function () {
 
     time.increaseTo(await onVestingMain.getTimeTGE());
 
-    expect(onAirdrop.addUserToAirdrop([receiver2], [parseEther("445")]))
+    expect(onAirdrop.addRecipient([receiver2], [parseEther("445")]))
       .to.revertedWithCustomError(onAirdrop, "TGEAlreadyStarted")
       .withArgs(1n, 2n);
   });
@@ -111,7 +111,7 @@ describe("ONAirdrop", function () {
     const { receiver1, onAirdrop, onVestingMain } = await loadFixture(fixture);
 
     await expect(
-      onAirdrop.connect(receiver1).claimAirdrop()
+      onAirdrop.connect(receiver1).claim()
     ).to.revertedWithCustomError(onAirdrop, "TGENotStarted");
   });
 });

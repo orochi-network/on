@@ -82,7 +82,7 @@ const getVestingSubContract = async (
   // Check eligibility for airdrop
   console.log(
     "Airdrop Balance of 0x70997970C51812dc3A010C7d01b50e0d17dc79C8:",
-    await airdrop.read.balanceAirdrop([
+    await airdrop.read.getAirdropBalance([
       "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
     ])
   );

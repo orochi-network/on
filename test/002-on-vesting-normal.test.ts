@@ -324,7 +324,7 @@ describe("ONVestingMain", function () {
 
     await expect(vestingContract.emergency()).to.emit(
       vestingContract,
-      "EmergencyWithdrawal"
+      "EmergencyWithdraw"
     );
 
     expect(await token.balanceOf(vestingContract)).to.eq(0n);
