@@ -10,7 +10,7 @@ contract MockTokenWrongBalance is ERC20 {
     /**
      * Deploy and initialize the MockToken contract
      */
-    constructor() ERC20("Mock Token", "Mock") {}
+    constructor() ERC20("Mock Token Wrong Balance", "MWB") {}
 
     /*******************************************************
      * Owner
@@ -21,7 +21,8 @@ contract MockTokenWrongBalance is ERC20 {
      */
     function balanceOf(
         address _account
-    ) public view override returns (uint256) {
+    ) public pure override returns (uint256) {
+        abi.encode(_account);
         return 1;
     }
 }

@@ -12,7 +12,7 @@ contract MockTokenNoTransfer is ERC20 {
     /**
      * Deploy and initialize the MockToken contract
      */
-    constructor(address token) ERC20("Mock Token", "Mock") {
+    constructor(address token) ERC20("Mock Token No Transfer", "MNT") {
         originalToken = IERC20(token);
     }
 
@@ -26,7 +26,8 @@ contract MockTokenNoTransfer is ERC20 {
     function transfer(
         address _to,
         uint256 _value
-    ) public override returns (bool) {
+    ) public pure override returns (bool) {
+        abi.encode(_to, _value);
         return false;
     }
 
