@@ -93,7 +93,7 @@ contract ONAirdropBase {
     }
 
     /**
-     * Add users to the airdrop pool
+     * Remove users from the airdrop pool
      * @dev Only callable by the owner before TGE. Emits TGEStarted event.
      * @param beneficaryList Array of beneficiaries
      */
