@@ -6,7 +6,7 @@ import { VestingTermStruct } from "../typechain-types/contracts/ONVestingMain";
 
 const ONE_MIN = 60n;
 
-task("deploy", "Deploy the contracts").setAction(
+task("deploy-mock", "Deploy mock contracts").setAction(
   async (_args, hre) => {
     const [deployer, beneficiary] = await hre.ethers.getSigners();
     // Deploy a token
@@ -28,7 +28,7 @@ task("deploy", "Deploy the contracts").setAction(
     await onVestingSubImpl.waitForDeployment();
 
     // Deploy ONVestingMain
-    const ONVestingMain = await hre.ethers.getContractFactory("ONVestingMain");
+    const ONVestingMain = await hre.ethers.getContractFactory("MockVestingMain");
     const onVestingMain = await ONVestingMain.connect(deployer).deploy(
       token,
       timeTGE,
@@ -85,7 +85,7 @@ task("deploy", "Deploy the contracts").setAction(
         address: await token.getAddress(),
       },
       {
-        contractName: "Orochi Network Vesting Main",
+        contractName: "Mock Vesting Main",
         address: await onVestingMain.getAddress(),
       },
       {

@@ -89,7 +89,7 @@ const getVestingSubContract = async (
 
   /*
     // Example airdrop balance
-    const txHash = await airdrop.write.claimAirdrop();
+    const txHash = await airdrop.write.claim();
     console.log("Transaction hash:", txHash);
   */
 })();
