@@ -25,17 +25,17 @@ describe("ONVestingSub", function () {
     const blockTimestamp = BigInt(block.timestamp);
     const timeTGE = blockTimestamp + ONE_MONTH;
 
-    // Deploy a mock token
+    // Deploy a token
     const Token = await hre.ethers.getContractFactory("OrochiNetworkToken");
     const token = await Token.deploy("Orochi", "ON");
     await token.waitForDeployment();
 
-    // Deploy a mock ONVestingSub implementation with a mock "init" function
+    // Deploy a ONVestingSub
     const ONVestingSub = await hre.ethers.getContractFactory("ONVestingSub");
     const onVestingSubImpl = await ONVestingSub.deploy();
     await onVestingSubImpl.waitForDeployment();
 
-    // Deploy a minimal ONVestingMain with suitable constructor args
+    // Deploy ONVestingMain
     const ONVestingMain = await hre.ethers.getContractFactory("ONVestingMain");
     const onVestingMain = await ONVestingMain.deploy(
       token,
@@ -158,7 +158,6 @@ describe("ONVestingSub", function () {
     ).to.revertedWithCustomError(vestingContract, "InvalidBeneficiary");
   });
 
-
   it("Should not able transfer vesting contract to zero-address", async function () {
     const { getOnVestingSubByIndex, beneficiary1 } = await loadFixture(
       fixture
@@ -196,15 +195,14 @@ describe("ONVestingSub", function () {
       fixture
     );
 
-
-
     const term = {
       ...vestingTerm,
       beneficiary: beneficiary2.address,
 
     };
-    await onVestingMain.transfer(onVestingSubImpl, term.total);
+    await expect(onVestingMain.transfer(onVestingSubImpl, term.total)).to.emit(
+      onVestingMain,
+      "TransferToken");
     await onVestingSubImpl.init(onVestingMain, term)
-
   });
 });

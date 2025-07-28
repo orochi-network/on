@@ -3,7 +3,7 @@ import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import hre from "hardhat";
 import { ONVestingSub } from "../typechain-types";
-import { VestingTermStruct } from "../typechain-types/contracts/ONInterface.sol/IONVestingSub";
+import { VestingTermStruct } from "../typechain-types/contracts/ONVestingSub";
 import { parseEther, ZeroAddress } from "ethers";
 
 const ONE_DAY = BigInt(24 * 60 * 60);
@@ -24,17 +24,17 @@ describe("ONVestingMain", function () {
     const blockTimestamp = BigInt(block.timestamp);
     const timeTGE = blockTimestamp + ONE_MONTH;
 
-    // Deploy a mock token
+    // Deploy a token
     const Token = await hre.ethers.getContractFactory("OrochiNetworkToken");
     const token = await Token.deploy("Orochi", "ON");
     await token.waitForDeployment();
 
-    // Deploy a mock ONVestingSub implementation with a mock "init" function
+    // Deploy a ONVestingSub implementation
     const ONVestingSub = await hre.ethers.getContractFactory("ONVestingSub");
     const onVestingSubImpl = await ONVestingSub.deploy();
     await onVestingSubImpl.waitForDeployment();
 
-    // Deploy a minimal ONVestingMain with suitable constructor args
+    // Deploy a minimal ONVestingMain
     const ONVestingMain = await hre.ethers.getContractFactory("ONVestingMain");
     const onVestingMain = await ONVestingMain.deploy(
       token,
@@ -88,11 +88,11 @@ describe("ONVestingMain", function () {
   it("ONVestingMain should able to mint token", async function () {
     const { ONVestingMain, Token, blockTimestamp, onVestingSubImpl, owner } = await loadFixture(fixture);
 
-    // Deploy a mock token
+    // Deploy a token
     const token = await Token.deploy("Orochi", "ON");
     await token.waitForDeployment();
 
-    // Deploy a minimal ONVestingMain with suitable constructor args
+    // Deploy ONVestingMain
     const onVestingMain = await ONVestingMain.connect(owner).deploy(
       token,
       blockTimestamp + ONE_DAY,
@@ -106,11 +106,11 @@ describe("ONVestingMain", function () {
       .to.emit(token, "Transfer")
       .withArgs(ZeroAddress, await onVestingMain.getAddress(), parseEther("700000000"));
 
-    await expect(onVestingMain.connect(owner).mint()).to.revertedWith('ON: Max supply is minted');
+    await expect(onVestingMain.connect(owner).mint()).to.revertedWithCustomError(token, 'AlreadyMinted');
   });
 
   it("Should add a vesting term with zero unlocked at TGE", async function () {
-    const { owner, beneficiary2, onVestingMain } = await loadFixture(fixture);
+    const { owner, beneficiary2, onVestingMain, getOnVestingSubByIndex } = await loadFixture(fixture);
     // Cliff 3 months
     // Unlock at TGE 1,000
     // Total: 1,000,000
@@ -127,6 +127,11 @@ describe("ONVestingMain", function () {
     await expect(onVestingMain.connect(owner).addVestingTerm(term))
       .to.emit(onVestingMain, "AddNewVestingContract")
       .withArgs(1, anyValue, beneficiary2.address); // anyValue: address of new vesting contract
+
+
+    const vestingContract = await getOnVestingSubByIndex(1n);
+
+    expect(await vestingContract.getClaimableBalance()).to.eq(0n);
 
     // Should increment total count
     expect(await onVestingMain.getVestingContractTotal()).to.equal(2);
@@ -211,6 +216,9 @@ describe("ONVestingMain", function () {
     const releaseVesting = [];
 
     // Unlock at TGE should be correct
+    expect(await vestingContract.getClaimableBalance()).to.eq(
+      vestingTerm.unlockedAtTGE
+    );
     await time.increaseTo(await onVestingMain.getTimeTGE());
     await vestingContract.claim();
     expect(await token.balanceOf(beneficiary1)).to.eq(
@@ -229,6 +237,9 @@ describe("ONVestingMain", function () {
       const beforeBalance = await token.balanceOf(beneficiary1);
       await time.increaseTo(currentTime);
       await vestingContract.claim();
+      const { balanceClaimable } = await vestingContract.getVestingDetail()
+      // After each claim, the claimable balance should be 0
+      expect(balanceClaimable).to.be.equal(0n);
       const milestone = BigInt(
         (currentTime - timeStart) / vestingTerm.milestoneDuration
       );
@@ -324,7 +335,7 @@ describe("ONVestingMain", function () {
 
     await expect(vestingContract.emergency()).to.emit(
       vestingContract,
-      "EmergencyWithdrawal"
+      "EmergencyWithdraw"
     );
 
     expect(await token.balanceOf(vestingContract)).to.eq(0n);
@@ -342,5 +353,23 @@ describe("ONVestingMain", function () {
       onVestingMain,
       "InvalidOffsetOrLimit"
     );
+  });
+
+  it("Should stacking claim able over time", async function () {
+    const { getOnVestingSubByIndex } = await loadFixture(fixture);
+
+    const vestingContract = await getOnVestingSubByIndex(0n);
+    const {
+      start,
+      end,
+      milestoneDuration
+    } = await vestingContract.getVestingDetail();
+    const data = [];
+    for (let currentTime = start; currentTime <= end; currentTime += milestoneDuration) {
+      await time.increaseTo(currentTime);
+      const { start, end, milestoneClaimed, milestoneDuration, milestoneReleaseAmount, balanceClaimable } = await vestingContract.getVestingDetail();
+      data.push({ start, end, milestoneClaimed, milestoneDuration, milestoneReleaseAmount, balanceClaimable });
+    }
+    console.table(data);
   });
 });

@@ -4,7 +4,7 @@ import { expect } from "chai";
 import { parseEther, ZeroAddress } from "ethers";
 import hre from "hardhat";
 import { ONVestingSub } from "../typechain-types";
-import { VestingTermStruct } from "../typechain-types/contracts/ONInterface.sol/IONVestingSub";
+import { VestingTermStruct } from "../typechain-types/contracts/ONVestingSub";
 
 const ONE_DAY = BigInt(24 * 60 * 60);
 const ONE_MONTH = ONE_DAY * 30n;
@@ -24,17 +24,17 @@ describe("ONVestingMain", function () {
     const blockTimestamp = BigInt(block.timestamp);
     const timeTGE = blockTimestamp + ONE_MONTH;
 
-    // Deploy a mock token
+    // Deploy a token
     const Token = await hre.ethers.getContractFactory("OrochiNetworkToken");
     const token = await Token.deploy("Orochi", "ON");
     await token.waitForDeployment();
 
-    // Deploy a mock ONVestingSub implementation with a mock "init" function
+    // Deploy a ONVestingSub implementation
     const ONVestingSub = await hre.ethers.getContractFactory("ONVestingSub");
     const onVestingSubImpl = await ONVestingSub.deploy();
     await onVestingSubImpl.waitForDeployment();
 
-    // Deploy a minimal ONVestingMain with suitable constructor args
+    // Deploy ONVestingMain
     const ONVestingMain = await hre.ethers.getContractFactory("ONVestingMain");
     const onVestingMain = await ONVestingMain.deploy(
       token,
@@ -338,6 +338,48 @@ describe("ONVestingMain", function () {
     await expect(onVestingMain.mint()).to.to.revertedWithCustomError(
       onVestingMain,
       "TGEAlreadyStarted"
+    );
+  });
+
+  it("Should not able to call emergency with invalid token", async function () {
+    const {
+      token,
+      beneficiary1,
+      onVestingMain,
+      getOnVestingSubByIndex,
+    } = await loadFixture(fixture);
+
+    const MockTokenNoTransfer = await hre.ethers.getContractFactory(
+      "MockTokenNoTransfer"
+    );
+    const mockToken = await MockTokenNoTransfer.deploy(token);
+    await mockToken.deploymentTransaction();
+
+    await onVestingMain.setTokenAddress(mockToken);
+
+    const vestingContract = await getOnVestingSubByIndex(0n);
+
+    await time.increaseTo((await vestingContract.getTimeEnd()) + ONE_QUARTER);
+
+    await expect(
+      vestingContract.connect(beneficiary1).emergency()
+    ).to.revertedWithCustomError(vestingContract, "UnableToCallEmergency");
+  });
+
+  it("Should not able to claim token before TGE", async function () {
+    const { beneficiary1, onVestingMain, getOnVestingSubByIndex, onVestingSubImpl, vestingTerm } =
+      await loadFixture(fixture);
+
+    const term = {
+      ...vestingTerm,
+      unlockedAtTGE: 0n,
+    }
+
+    await onVestingMain.addVestingTerm(term);
+
+    const contract1 = await getOnVestingSubByIndex(1n);
+    expect(await contract1.getClaimableBalance()).to.eq(
+      0n
     );
   });
 });

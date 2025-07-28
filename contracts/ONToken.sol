@@ -8,6 +8,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @title Orochi Network Token
  */
 contract OrochiNetworkToken is ERC20, Ownable {
+    error AlreadyMinted(uint256 totalSupply);
+
     /**
      * Deploy and initialize the Orochi Network Token
      * @param name Token name
@@ -26,8 +28,10 @@ contract OrochiNetworkToken is ERC20, Ownable {
      * Only allow owner to mint
      * @dev Owner will be Orochi Network Vesting Main
      */
-    function mint() public onlyOwner returns (bool) {
-        require(totalSupply() == 0, "ON: Max supply is minted");
+    function mint() external onlyOwner returns (bool) {
+        if (totalSupply() > 0) {
+            revert AlreadyMinted(totalSupply());
+        }
         _mint(owner(), 700000000 ether);
         return true;
     }

@@ -3,17 +3,16 @@ pragma solidity 0.8.26;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interfaces/ONCommon.sol";
-import "./ONVestingMainBase.sol";
+import "../interfaces/ONCommon.sol";
+import "../ONVestingMainBase.sol";
 
 /**
  * @title Orochi Network Token
  */
-contract ONVestingMain is
+contract MockVestingMain is
     ONVestingMainInterface,
     ONVestingMainBase,
-    ReentrancyGuard,
-    Ownable
+    ReentrancyGuard
 {
     /*******************************************************
      * Constructor
@@ -27,10 +26,7 @@ contract ONVestingMain is
         address tokenAddress,
         uint256 timestampTGE,
         address onVestingSubImpl
-    )
-        Ownable(msg.sender)
-        ONVestingMainBase(tokenAddress, timestampTGE, onVestingSubImpl)
-    {}
+    ) ONVestingMainBase(tokenAddress, timestampTGE, onVestingSubImpl) {}
 
     /*******************************************************
      * External Owner
@@ -42,10 +38,7 @@ contract ONVestingMain is
      * @param value Amount of token to transfer
      * @dev Only callable by the owner
      */
-    function transfer(
-        address to,
-        uint256 value
-    ) external onlyOwner nonReentrant {
+    function transfer(address to, uint256 value) external nonReentrant {
         _transfer(to, value);
     }
 
@@ -58,9 +51,7 @@ contract ONVestingMain is
      * @param tokenAddress Address of the ONToken contract
      * @dev Only callable by the owner before TGE
      */
-    function setTokenAddress(
-        address tokenAddress
-    ) external onlyOwner nonReentrant onlyPreTGE {
+    function setTokenAddress(address tokenAddress) external nonReentrant {
         _setTokenAddress(tokenAddress);
     }
 
@@ -69,9 +60,7 @@ contract ONVestingMain is
      * @param onVestingSubImpl Address of the ONVestingSub implementation
      * @dev Only callable by the owner before TGE
      */
-    function setImplementation(
-        address onVestingSubImpl
-    ) external onlyOwner nonReentrant onlyPreTGE {
+    function setImplementation(address onVestingSubImpl) external nonReentrant {
         _setImplementation(onVestingSubImpl);
     }
 
@@ -80,16 +69,14 @@ contract ONVestingMain is
      * @param timestampTGE Timestamp of the TGE
      * @dev Only callable by the owner before TGE
      */
-    function setTimeTGE(
-        uint256 timestampTGE
-    ) external onlyOwner nonReentrant onlyPreTGE {
+    function setTimeTGE(uint256 timestampTGE) external nonReentrant {
         _setTimeTGE(timestampTGE);
     }
 
     /**
      * Mint maxium supply to this contract
      */
-    function mint() external onlyOwner nonReentrant onlyPreTGE {
+    function mint() external nonReentrant {
         _mint();
     }
 
@@ -100,7 +87,7 @@ contract ONVestingMain is
      */
     function addVestingTerm(
         VestingTerm calldata vestingTerm
-    ) external onlyOwner nonReentrant onlyPreTGE {
+    ) external nonReentrant {
         _addVestingTerm(vestingTerm);
     }
 
