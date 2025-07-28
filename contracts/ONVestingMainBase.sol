@@ -63,7 +63,9 @@ contract ONVestingMainBase is ONVestingMainBaseInterface {
      ********************************************************/
 
     /**
-     * Set ONToken address
+     * Transfer token to the given address
+     * @param to Address to transfer token to
+     * @param value Amount of token to transfer
      */
     function _transfer(address to, uint256 value) internal {
         if (token.transfer(to, value)) {
@@ -74,7 +76,7 @@ contract ONVestingMainBase is ONVestingMainBaseInterface {
     }
 
     /**
-     * Mint maxium supply to this contract
+     * Mint maximum supply to this contract
      */
     function _mint() internal {
         token.mint();
@@ -82,7 +84,6 @@ contract ONVestingMainBase is ONVestingMainBaseInterface {
 
     /**
      * Add a vesting term to the contract
-     * @dev Only callable by the owner before TGE
      * @param vestingTerm VestingTerm struct
      */
     function _addVestingTerm(VestingTerm calldata vestingTerm) internal {

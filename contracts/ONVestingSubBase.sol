@@ -78,7 +78,6 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
     /**
      * If token is vested but stuck in the smart contract
      * this method allow to withdraw all of them
-     * @dev Only callable after fully vested
      */
     function _emergency() internal {
         if (block.timestamp >= _timeEnd() + schedule.milestoneDuration) {
@@ -112,8 +111,7 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
     /**
      * Claim tokens for a benefi account
      */
-    function _claim() internal {
-        address account = beneficiary;
+    function _claim(address account) internal {
         VestingSchedule memory vestingSchedule = schedule;
 
         // If there is no token then vesting schedule is invalid
@@ -178,23 +176,22 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
             uint256 milestoneTotal = term.vestingDuration /
                 term.milestoneDuration;
             uint256 milestoneReleaseAmount = remaining / milestoneTotal;
-            if (milestoneTotal > 0 && milestoneReleaseAmount > 0) {
-                // Calculate the amount to unlock at TGE
-                if (term.unlockedAtTGE > 0) {
-                    emit UnlockAtTGE(term.beneficiary, term.unlockedAtTGE);
-                }
 
-                schedule = VestingSchedule({
-                    cliff: term.cliff,
-                    vestingDuration: term.vestingDuration,
-                    milestoneDuration: term.milestoneDuration,
-                    milestoneClaimed: 0,
-                    milestoneReleaseAmount: milestoneReleaseAmount,
-                    unlockedAtTGE: term.unlockedAtTGE,
-                    totalClaimed: 0
-                });
-                return;
+            // Calculate the amount to unlock at TGE
+            if (term.unlockedAtTGE > 0) {
+                emit UnlockAtTGE(term.beneficiary, term.unlockedAtTGE);
             }
+
+            schedule = VestingSchedule({
+                cliff: term.cliff,
+                vestingDuration: term.vestingDuration,
+                milestoneDuration: term.milestoneDuration,
+                milestoneClaimed: 0,
+                milestoneReleaseAmount: milestoneReleaseAmount,
+                unlockedAtTGE: term.unlockedAtTGE,
+                totalClaimed: 0
+            });
+            return;
         }
         revert InvalidVestingTerm(term.beneficiary);
     }
@@ -223,7 +220,6 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
      */
     function _getVestingDetail() internal view returns (VestingDetail memory) {
         VestingSchedule memory vestingSchedule = schedule;
-        (, uint256 balance) = _balance();
         VestingDetail memory vestingDetail = VestingDetail({
             contractAddress: address(this),
             beneficiary: beneficiary,
@@ -234,7 +230,7 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
             milestoneReleaseAmount: vestingSchedule.milestoneReleaseAmount,
             unlockedAtTGE: vestingSchedule.unlockedAtTGE,
             totalClaimed: vestingSchedule.totalClaimed,
-            balanceClaimable: balance,
+            balanceClaimable: _getClaimableBalance(),
             balanceRemain: _getRemainingBalance()
         });
 
@@ -284,25 +280,22 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
         returns (uint64 milestone, uint256 amount)
     {
         VestingSchedule memory vestingSchedule = schedule;
-        // This schedule vested at TGE
-        if (
-            vestingSchedule.unlockedAtTGE > 0 &&
-            vestingSchedule.totalClaimed == 0
-        ) {
-            return (0, vestingSchedule.unlockedAtTGE);
-        }
 
-        // Only start vesting
+        // Check for the normal vesting schedule where
+        // the contract is a not vested immediately
         if (
-            block.timestamp >= _timeStart() &&
-            vestingSchedule.milestoneDuration > 0
+            vestingSchedule.vestingDuration > 0 &&
+            vestingSchedule.milestoneDuration > 0 &&
+            vestingSchedule.vestingDuration >= vestingSchedule.milestoneDuration
         ) {
             // Calculate total milestones
             uint64 milestoneTotal = vestingSchedule.vestingDuration /
                 vestingSchedule.milestoneDuration;
-
-            milestone = ((uint64(block.timestamp) - _timeStart()) /
-                vestingSchedule.milestoneDuration);
+            uint64 currentTime = uint64(block.timestamp);
+            milestone = currentTime > _timeStart()
+                ? ((currentTime - _timeStart()) /
+                    vestingSchedule.milestoneDuration)
+                : 0;
             // Milestone can't be greater than total milestones
             milestone = milestone >= milestoneTotal
                 ? milestoneTotal
@@ -317,6 +310,11 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
                     claimableAmount - vestingSchedule.totalClaimed
                 );
             }
+        } else if (
+            vestingSchedule.unlockedAtTGE > 0 &&
+            vestingSchedule.totalClaimed == 0
+        ) {
+            return (0, vestingSchedule.unlockedAtTGE);
         }
         return (0, 0);
     }

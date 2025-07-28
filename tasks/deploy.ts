@@ -9,7 +9,7 @@ const ONE_MIN = 60n;
 task("deploy", "Deploy the OrochiNetworkToken contract").setAction(
   async (_args, hre) => {
     const [deployer, beneficiary] = await hre.ethers.getSigners();
-    // Deploy a mock token
+    // Deploy a token
     const Token = await hre.ethers.getContractFactory("OrochiNetworkToken");
     const token = await Token.connect(deployer).deploy("Orochi", "ON");
     await token.waitForDeployment();
@@ -22,12 +22,12 @@ task("deploy", "Deploy the OrochiNetworkToken contract").setAction(
     const blockTimestamp = BigInt(block.timestamp);
     const timeTGE = blockTimestamp + 60n;
 
-    // Deploy a mock ONVestingSub implementation with a mock "init" function
+    // Deploy ONVestingSub implementation
     const ONVestingSub = await hre.ethers.getContractFactory("ONVestingSub");
     const onVestingSubImpl = await ONVestingSub.connect(deployer).deploy();
     await onVestingSubImpl.waitForDeployment();
 
-    // Deploy a minimal ONVestingMain with suitable constructor args
+    // Deploy ONVestingMain
     const ONVestingMain = await hre.ethers.getContractFactory("ONVestingMain");
     const onVestingMain = await ONVestingMain.connect(deployer).deploy(
       token,
@@ -65,7 +65,7 @@ task("deploy", "Deploy the OrochiNetworkToken contract").setAction(
     // Transfer token to airdrop
     await onVestingMain.transfer(onAirdrop, parseEther("20000000"));
 
-    await onAirdrop.addUserToAirdrop([beneficiary], [parseEther("1000")]);
+    await onAirdrop.addRecipient([beneficiary], [parseEther("1000")]);
 
     console.table([
       {

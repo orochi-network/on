@@ -10,7 +10,7 @@ import "./ONVestingSubBase.sol";
  */
 contract ONVestingSub is ONVestingSubBase, ReentrancyGuard {
     /*******************************************************
-     * Init method
+     * External Only Once
      ********************************************************/
 
     /**
@@ -26,7 +26,7 @@ contract ONVestingSub is ONVestingSubBase, ReentrancyGuard {
     }
 
     /*******************************************************
-     * External Only Beneficiary
+     * External Only Beneficiary, after TGE
      ********************************************************/
 
     /**
@@ -34,7 +34,7 @@ contract ONVestingSub is ONVestingSubBase, ReentrancyGuard {
      * @dev Only callable after TGE
      */
     function claim() external nonReentrant onlyPostTGE onlyBeneficiary {
-        _claim();
+        _claim(_getBeneficiary());
     }
 
     /**
@@ -45,6 +45,10 @@ contract ONVestingSub is ONVestingSubBase, ReentrancyGuard {
     function emergency() external nonReentrant onlyPostTGE onlyBeneficiary {
         _emergency();
     }
+
+    /*******************************************************
+     * External Only Beneficiary
+     ********************************************************/
 
     /**
      * Transfer vesting contract to new owner

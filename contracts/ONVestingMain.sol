@@ -37,7 +37,10 @@ contract ONVestingMain is
      ********************************************************/
 
     /**
-     * Set ONToken address
+     * Transfer token to the given address
+     * @param to Address to transfer token to
+     * @param value Amount of token to transfer
+     * @dev Only callable by the owner
      */
     function transfer(
         address to,
@@ -46,8 +49,14 @@ contract ONVestingMain is
         _transfer(to, value);
     }
 
+    /*******************************************************
+     * External Owner, before TGE
+     ********************************************************/
+
     /**
      * Set ONToken address
+     * @param tokenAddress Address of the ONToken contract
+     * @dev Only callable by the owner before TGE
      */
     function setTokenAddress(
         address tokenAddress
@@ -57,6 +66,8 @@ contract ONVestingMain is
 
     /**
      * Set ONVestingSub implementation
+     * @param onVestingSubImpl Address of the ONVestingSub implementation
+     * @dev Only callable by the owner before TGE
      */
     function setImplementation(
         address onVestingSubImpl
@@ -66,6 +77,8 @@ contract ONVestingMain is
 
     /**
      * Set TGE time
+     * @param timestampTGE Timestamp of the TGE
+     * @dev Only callable by the owner before TGE
      */
     function setTimeTGE(
         uint256 timestampTGE
@@ -82,8 +95,8 @@ contract ONVestingMain is
 
     /**
      * Add a vesting term to the contract
-     * @dev Only callable by the owner before TGE
      * @param vestingTerm VestingTerm struct
+     * @dev Only callable by the owner before TGE
      */
     function addVestingTerm(
         VestingTerm calldata vestingTerm

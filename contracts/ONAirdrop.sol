@@ -23,7 +23,7 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
     ) Ownable(msg.sender) ONAirdropBase(onVestingMainAddress) {}
 
     /*******************************************************
-     * External Post TGE
+     * External, after TGE
      ********************************************************/
 
     /**
@@ -31,24 +31,33 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
      * @dev Only callable after TGE
      */
     function claim() external nonReentrant onlyPostTGE {
-        _claim();
+        _claim(msg.sender);
     }
 
     /*******************************************************
-     * Owner Pre TGE
+     * External Owner
      ********************************************************/
 
     /**
      * Add users to the airdrop pool
-     * @dev Only callable by the owner before TGE. Emits TGEStarted event.
      * @param beneficaryList Array of beneficiaries
      * @param amountList Array of amountList
      */
     function addRecipient(
         address[] memory beneficaryList,
         uint256[] memory amountList
-    ) external nonReentrant onlyOwner onlyPreTGE {
+    ) external nonReentrant onlyOwner {
         _addRecipient(beneficaryList, amountList);
+    }
+
+    /**
+     * Add users to the airdrop pool
+     * @param beneficaryList Array of beneficiaries
+     */
+    function removeRecipient(
+        address[] memory beneficaryList
+    ) external nonReentrant onlyOwner {
+        _removeRecipient(beneficaryList);
     }
 
     /*******************************************************

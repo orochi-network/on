@@ -39,8 +39,8 @@ describe("OrochiNetworkToken", function () {
       parseEther("700000000")
     );
 
-    await expect(token.connect(owner).mint()).to.revertedWith(
-      "ON: Max supply is minted"
+    await expect(token.connect(owner).mint()).to.revertedWithCustomError(
+      token, 'AlreadyMinted'
     );
   });
 
