@@ -51,7 +51,7 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
     }
 
     /**
-     * Add users to the airdrop pool
+     * Remove users from the airdrop pool
      * @param beneficaryList Array of beneficiaries
      */
     function removeRecipient(
