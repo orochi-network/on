@@ -21,14 +21,6 @@ jobs:
       - name: Fetch main branch
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
 
-      - name: Debug decoded key file
-        run: |
-          echo "${{ secrets.GPG_ALLOW_LIST }}" | base64 -d > allow-list.asc
-          echo "Decoded key preview:"
-          head -n 5 allow-list.asc || true
-          echo "Full size:"
-          wc -c allow-list.asc
-
       - name: Import allowed GPG key list
         run: |
           mkdir -p ~/.gnupg
