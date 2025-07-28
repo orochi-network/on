@@ -18,8 +18,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Fetch base branch (main)
+      - name: Fetch main branch
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+
+      - name: Debug decoded key file
+        run: |
+          echo "${{ secrets.GPG_ALLOW_LIST }}" | base64 -d > allow-list.asc
+          echo "Decoded key preview:"
+          head -n 5 allow-list.asc || true
+          echo "Full size:"
+          wc -c allow-list.asc
+
+      - name: Import allowed GPG key list
+        run: |
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+
+          echo "${{ secrets.GPG_ALLOW_LIST }}" | base64 -d > allow-list.asc
+
+          gpg --import allow-list.asc
+          gpg --list-keys --with-colons | awk -F: '/^fpr:/ { print $10 }' > .gpg-list.txt
 
       - name: Check commit signatures
         run: |
@@ -28,7 +46,7 @@ jobs:
             SIG=$(git log --format='%G?' -n 1 "$COMMIT")
             echo "Commit $COMMIT signature type: $SIG"
 
-            if [[ "$SIG" != "G" && "$SIG" != "U" && "$SIG" != "Y" && "$SIG" != "R" && "$SIG" != "S" && "$SIG" != "E" ]]; then
+            if [[ "$SIG" != "G" && "$SIG" != "U" && "$SIG" != "Y" && "$SIG" != "R" && "$SIG" != "S" ]]; then
               echo "Commit $COMMIT is not signed!"
               exit 1
             fi
