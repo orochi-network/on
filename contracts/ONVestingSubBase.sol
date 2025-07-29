@@ -17,7 +17,11 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
     // Schedule of vesting
     VestingSchedule private schedule;
 
-    uint64 immutable MAX_MILESTONE_DURATION = (24 * 60 * 60 * 30) * 6; // 6 months
+    uint64 immutable MAX_CLIFF = (24 * 60 * 60 * 30) * 12; // 12 months
+
+    uint64 immutable MAX_MILESTONE_DURATION = (24 * 60 * 60 * 30) * 3; // 3 months
+
+    uint64 immutable MAX_VESTING_DURATION = (24 * 60 * 60 * 30) * 36; // 36 months
 
     /**
      * @dev Modifier to make sure that the TGE is started
@@ -164,13 +168,18 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
         }
 
         // Filter invalid terms
+        // All token must not be unlocked immediatly
+        // Mile stone duration <= 3 months
+        // Cliff <= 12 months
+        // Mile stone duration <= Vesting duration <= 36 months
         if (
             term.total > term.unlockedAtTGE &&
             term.milestoneDuration > 0 &&
             term.milestoneDuration <= MAX_MILESTONE_DURATION &&
             term.cliff >= 0 &&
-            term.cliff <= term.vestingDuration &&
-            term.vestingDuration >= term.milestoneDuration
+            term.cliff <= MAX_CLIFF &&
+            term.vestingDuration >= term.milestoneDuration &&
+            term.vestingDuration <= MAX_VESTING_DURATION
         ) {
             uint256 remaining = term.total - term.unlockedAtTGE;
             uint256 milestoneTotal = term.vestingDuration /
