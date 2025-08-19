@@ -20,7 +20,7 @@ contract ONVestingSub is ONVestingSubBase, ReentrancyGuard {
      */
     function init(
         address onVestingMainAddress,
-        VestingTerm memory vestingTerm
+        VestingTerm calldata vestingTerm
     ) external onlyOnce nonReentrant returns (bool) {
         return _init(onVestingMainAddress, vestingTerm);
     }

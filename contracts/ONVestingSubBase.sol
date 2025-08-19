@@ -64,7 +64,7 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
      */
     function _init(
         address onVestingMainAddress,
-        VestingTerm memory vestingTerm
+        VestingTerm calldata vestingTerm
     ) internal returns (bool) {
         if (
             onVestingMainAddress == address(0) ||
@@ -151,7 +151,7 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
      * @dev Only callable by the owner before TGE
      * @param term VestingTerm struct
      */
-    function _addVestingTerm(VestingTerm memory term) internal {
+    function _addVestingTerm(VestingTerm calldata term) internal {
         if (term.total == term.unlockedAtTGE) {
             schedule = VestingSchedule({
                 cliff: 0,

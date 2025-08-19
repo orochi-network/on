@@ -75,8 +75,8 @@ contract ONAirdropBase {
      * @param amountList Array of amountList
      */
     function _addRecipient(
-        address[] memory beneficaryList,
-        uint256[] memory amountList
+        address[] calldata beneficaryList,
+        uint256[] calldata amountList
     ) internal {
         if (beneficaryList.length != amountList.length) {
             revert RecipientAmountLengthMismatch(
@@ -97,7 +97,7 @@ contract ONAirdropBase {
      * @dev Only callable by the owner before TGE. Emits TGEStarted event.
      * @param beneficaryList Array of beneficiaries
      */
-    function _removeRecipient(address[] memory beneficaryList) internal {
+    function _removeRecipient(address[] calldata beneficaryList) internal {
         for (uint256 i = 0; i < beneficaryList.length; i += 1) {
             if (beneficaryList[i] != address(0)) {
                 airdrop[beneficaryList[i]] = 0;

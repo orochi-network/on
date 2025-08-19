@@ -101,7 +101,7 @@ interface ONVestingSubInterface {
     // Init
     function init(
         address onVestingMainAddress,
-        VestingTerm memory vestingTerm
+        VestingTerm calldata vestingTerm
     ) external returns (bool);
 
     // Beneficiary actions
