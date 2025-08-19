@@ -89,9 +89,16 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
             uint256 remaining = _getRemainingBalance();
             if (_getToken().transfer(beneficiary, remaining)) {
                 vestingSchedule.totalClaimed += remaining;
-                vestingSchedule.milestoneClaimed =
-                    vestingSchedule.vestingDuration /
-                    vestingSchedule.milestoneDuration;
+                // Prevent division by zero
+                if (
+                    vestingSchedule.vestingDuration >=
+                    vestingSchedule.milestoneDuration &&
+                    vestingSchedule.milestoneDuration > 0
+                ) {
+                    vestingSchedule.milestoneClaimed =
+                        vestingSchedule.vestingDuration /
+                        vestingSchedule.milestoneDuration;
+                }
                 schedule = vestingSchedule;
                 emit EmergencyWithdraw(beneficiary, remaining);
                 return;
