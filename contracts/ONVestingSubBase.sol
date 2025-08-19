@@ -5,7 +5,7 @@ import "./interfaces/ONCommon.sol";
 import "./interfaces/ONVestingSubBaseInterface.sol";
 
 /**
- * @title Orochi Network Vesting Sub
+ * @title Orochi Network Vesting Sub Base
  */
 contract ONVestingSubBase is ONVestingSubBaseInterface {
     // Beneficiary of the vesting contract
@@ -17,11 +17,11 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
     // Schedule of vesting
     VestingSchedule private schedule;
 
-    uint64 immutable MAX_CLIFF = (24 * 60 * 60 * 30) * 12; // 12 months
+    uint64 immutable MAX_CLIFF = 365 days; // 12 months
 
-    uint64 immutable MAX_MILESTONE_DURATION = (24 * 60 * 60 * 30) * 3; // 3 months
+    uint64 immutable MAX_MILESTONE_DURATION = 90 days; // 3 months
 
-    uint64 immutable MAX_VESTING_DURATION = (24 * 60 * 60 * 30) * 36; // 36 months
+    uint64 immutable MAX_VESTING_DURATION = 365 days * 3; // 36 months
 
     /**
      * @dev Modifier to make sure that the TGE is started
@@ -64,7 +64,7 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
      */
     function _init(
         address onVestingMainAddress,
-        VestingTerm memory vestingTerm
+        VestingTerm calldata vestingTerm
     ) internal returns (bool) {
         if (
             onVestingMainAddress == address(0) ||
@@ -88,10 +88,17 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
             VestingSchedule memory vestingSchedule = schedule;
             uint256 remaining = _getRemainingBalance();
             if (_getToken().transfer(beneficiary, remaining)) {
-                vestingSchedule.totalClaimed = remaining;
-                vestingSchedule.milestoneClaimed =
-                    vestingSchedule.vestingDuration /
-                    vestingSchedule.milestoneDuration;
+                vestingSchedule.totalClaimed += remaining;
+                // Prevent division by zero
+                if (
+                    vestingSchedule.vestingDuration >=
+                    vestingSchedule.milestoneDuration &&
+                    vestingSchedule.milestoneDuration > 0
+                ) {
+                    vestingSchedule.milestoneClaimed =
+                        vestingSchedule.vestingDuration /
+                        vestingSchedule.milestoneDuration;
+                }
                 schedule = vestingSchedule;
                 emit EmergencyWithdraw(beneficiary, remaining);
                 return;
@@ -151,7 +158,7 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
      * @dev Only callable by the owner before TGE
      * @param term VestingTerm struct
      */
-    function _addVestingTerm(VestingTerm memory term) internal {
+    function _addVestingTerm(VestingTerm calldata term) internal {
         if (term.total == term.unlockedAtTGE) {
             schedule = VestingSchedule({
                 cliff: 0,
@@ -178,6 +185,7 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
             term.milestoneDuration <= MAX_MILESTONE_DURATION &&
             term.cliff >= 0 &&
             term.cliff <= MAX_CLIFF &&
+            term.cliff <= term.vestingDuration &&
             term.vestingDuration >= term.milestoneDuration &&
             term.vestingDuration <= MAX_VESTING_DURATION
         ) {
@@ -301,6 +309,13 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
             uint64 milestoneTotal = vestingSchedule.vestingDuration /
                 vestingSchedule.milestoneDuration;
             uint64 currentTime = uint64(block.timestamp);
+
+            // If this contract is fully vested,
+            // We gonna return all remain token
+            if (currentTime >= _timeEnd()) {
+                return (milestoneTotal, _getRemainingBalance());
+            }
+
             milestone = currentTime > _timeStart()
                 ? ((currentTime - _timeStart()) /
                     vestingSchedule.milestoneDuration)

@@ -44,8 +44,8 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
      * @param amountList Array of amountList
      */
     function addRecipient(
-        address[] memory beneficaryList,
-        uint256[] memory amountList
+        address[] calldata beneficaryList,
+        uint256[] calldata amountList
     ) external nonReentrant onlyOwner {
         _addRecipient(beneficaryList, amountList);
     }
@@ -55,7 +55,7 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
      * @param beneficaryList Array of beneficiaries
      */
     function removeRecipient(
-        address[] memory beneficaryList
+        address[] calldata beneficaryList
     ) external nonReentrant onlyOwner {
         _removeRecipient(beneficaryList);
     }

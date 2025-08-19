@@ -8,7 +8,7 @@ import "./interfaces/ONCommon.sol";
 import {ONVestingMainBaseInterface} from "./interfaces/ONVestingMainBaseInterface.sol";
 
 /**
- * @title Orochi Network Token
+ * @title Orochi Network Vesting Main Base
  */
 contract ONVestingMainBase is ONVestingMainBaseInterface {
     // Allow main to clone sub contract
@@ -196,8 +196,9 @@ contract ONVestingMainBase is ONVestingMainBaseInterface {
             recordCount
         );
         for (uint i = offset; i < end; i += 1) {
-            vestingDetailList[i] = ONVestingSubInterface(vestingContractMap[i])
-                .getVestingDetail();
+            vestingDetailList[i - offset] = ONVestingSubInterface(
+                vestingContractMap[i]
+            ).getVestingDetail();
         }
         return vestingDetailList;
     }
