@@ -32,7 +32,7 @@ contract OrochiNetworkToken is ERC20, Ownable {
         if (totalSupply() > 0) {
             revert AlreadyMinted(totalSupply());
         }
-        _mint(owner(), 700000000 ether);
+        _mint(owner(), 700_000_000 ether);
         return true;
     }
 }
