@@ -5,7 +5,7 @@ import "./interfaces/ONCommon.sol";
 import "./interfaces/ONVestingSubBaseInterface.sol";
 
 /**
- * @title Orochi Network Vesting Sub
+ * @title Orochi Network Vesting Sub Base
  */
 contract ONVestingSubBase is ONVestingSubBaseInterface {
     // Beneficiary of the vesting contract

@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/ONCommon.sol";
 
 /**
- * @title Orochi Network Airdrop
+ * @title Orochi Network Airdrop Base
  */
 contract ONAirdropBase {
     // Errors

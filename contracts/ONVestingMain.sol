@@ -7,7 +7,7 @@ import "./interfaces/ONCommon.sol";
 import "./ONVestingMainBase.sol";
 
 /**
- * @title Orochi Network Token
+ * @title Orochi Network Vesting Main
  */
 contract ONVestingMain is
     ONVestingMainInterface,
