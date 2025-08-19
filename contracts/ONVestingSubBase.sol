@@ -88,7 +88,7 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
             VestingSchedule memory vestingSchedule = schedule;
             uint256 remaining = _getRemainingBalance();
             if (_getToken().transfer(beneficiary, remaining)) {
-                vestingSchedule.totalClaimed = remaining;
+                vestingSchedule.totalClaimed += remaining;
                 vestingSchedule.milestoneClaimed =
                     vestingSchedule.vestingDuration /
                     vestingSchedule.milestoneDuration;
