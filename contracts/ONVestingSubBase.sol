@@ -17,11 +17,11 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
     // Schedule of vesting
     VestingSchedule private schedule;
 
-    uint64 immutable MAX_CLIFF = (24 * 60 * 60 * 30) * 12; // 12 months
+    uint64 immutable MAX_CLIFF = 365 days; // 12 months
 
-    uint64 immutable MAX_MILESTONE_DURATION = (24 * 60 * 60 * 30) * 3; // 3 months
+    uint64 immutable MAX_MILESTONE_DURATION = 90 days; // 3 months
 
-    uint64 immutable MAX_VESTING_DURATION = (24 * 60 * 60 * 30) * 36; // 36 months
+    uint64 immutable MAX_VESTING_DURATION = 365 days * 3; // 36 months
 
     /**
      * @dev Modifier to make sure that the TGE is started
