@@ -178,6 +178,7 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
             term.milestoneDuration <= MAX_MILESTONE_DURATION &&
             term.cliff >= 0 &&
             term.cliff <= MAX_CLIFF &&
+            term.cliff <= term.vestingDuration &&
             term.vestingDuration >= term.milestoneDuration &&
             term.vestingDuration <= MAX_VESTING_DURATION
         ) {
