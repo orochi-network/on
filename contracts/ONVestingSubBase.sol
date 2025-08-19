@@ -301,6 +301,13 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
             uint64 milestoneTotal = vestingSchedule.vestingDuration /
                 vestingSchedule.milestoneDuration;
             uint64 currentTime = uint64(block.timestamp);
+
+            // If this contract is fully vested,
+            // We gonna return all remain token
+            if (currentTime >= _timeEnd()) {
+                return (milestoneTotal, _getRemainingBalance());
+            }
+
             milestone = currentTime > _timeStart()
                 ? ((currentTime - _timeStart()) /
                     vestingSchedule.milestoneDuration)
