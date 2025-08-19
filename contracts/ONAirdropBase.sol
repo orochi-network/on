@@ -17,7 +17,7 @@ contract ONAirdropBase {
     );
 
     // Main vesting contract address
-    ONVestingMainInterface private onVestingMain;
+    ONVestingMainInterface immutable onVestingMain;
 
     // Airdrop map for airdrop recipients
     mapping(address => uint256) private airdrop;
