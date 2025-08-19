@@ -196,8 +196,9 @@ contract ONVestingMainBase is ONVestingMainBaseInterface {
             recordCount
         );
         for (uint i = offset; i < end; i += 1) {
-            vestingDetailList[i] = ONVestingSubInterface(vestingContractMap[i])
-                .getVestingDetail();
+            vestingDetailList[i - offset] = ONVestingSubInterface(
+                vestingContractMap[i]
+            ).getVestingDetail();
         }
         return vestingDetailList;
     }
