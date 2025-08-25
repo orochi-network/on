@@ -189,7 +189,7 @@ contract ONVestingMainBase is ONVestingMainBaseInterface {
             end = vestingContractTotal;
         }
         uint256 recordCount = end - offset;
-        if (recordCount <= 0) {
+        if (recordCount == 0) {
             revert InvalidOffsetOrLimit(offset, limit);
         }
         VestingDetail[] memory vestingDetailList = new VestingDetail[](

@@ -126,7 +126,7 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
         VestingSchedule memory vestingSchedule = schedule;
 
         // If there is no token then vesting schedule is invalid
-        if (_getRemainingBalance() <= 0) {
+        if (_getRemainingBalance() == 0) {
             revert InvalidVestingSchedule(account);
         }
 
@@ -183,7 +183,6 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
             term.total > term.unlockedAtTGE &&
             term.milestoneDuration > 0 &&
             term.milestoneDuration <= MAX_MILESTONE_DURATION &&
-            term.cliff >= 0 &&
             term.cliff <= MAX_CLIFF &&
             term.cliff <= term.vestingDuration &&
             term.vestingDuration >= term.milestoneDuration &&

@@ -39,6 +39,6 @@ export default {
     sepolia: {
       url: "https://sepolia.drpc.org",
       chainId: 11155111,
-    }
+    },
   },
 } as HardhatUserConfig;
