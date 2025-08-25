@@ -1,17 +1,18 @@
-import { Client, createPublicClient, getContract, Hex, http } from "viem";
-import { localhost } from "viem/chains";
+import { Client, createPublicClient, createWalletClient, getContract, Hex, http, parseEther } from "viem";
+import { sepolia } from "viem/chains";
 import { ContractTypesMap } from "hardhat/types/artifacts";
 import { abi as abiVestingMain } from "../artifacts/contracts/ONVestingMain.sol/ONVestingMain.json";
 import { abi as abiVestingSub } from "../artifacts/contracts/ONVestingSub.sol/ONVestingSub.json";
 import { abi as abiAirdrop } from "../artifacts/contracts/ONAirdrop.sol/ONAirdrop.json";
 import { abi as abiToken } from "../artifacts/contracts/ONToken.sol/OrochiNetworkToken.json";
+import { privateKeyToAccount } from "viem/accounts";
 
 type HexString = `0x${string}`;
 
 const VESTING_MAIN_ADDRESS: HexString =
-  "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
+  "0xBd30FE3632367F22c1E582376594865d477A11e7";
 
-const AIRDROP_ADDRESS: HexString = "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9";
+const AIRDROP_ADDRESS: HexString = "0x47844aCcd37D9714302D2cd6a631c975f280c851";
 
 const getVestingSubContract = async (
   index: bigint,
@@ -33,8 +34,12 @@ const getVestingSubContract = async (
 };
 
 (async () => {
-  const client = createPublicClient({
-    chain: localhost,
+
+  const account = privateKeyToAccount('0x6e2bdbad67f9f86610d86aa3f6f923958806c4972a80af573756d2c4449c8775')
+
+  const client = createWalletClient({
+    account,
+    chain: sepolia,
     transport: http(),
   });
 
@@ -43,6 +48,11 @@ const getVestingSubContract = async (
     address: VESTING_MAIN_ADDRESS,
     client,
   }) as any;
+
+
+
+  const tx = await vestingMain.write.transfer(['0x3FB52F41bd66ec0b59419F95f2612341262618ee', parseEther('1')]);
+  console.log('Tx hash:', tx);
 
   const airdrop: ContractTypesMap["ONAirdrop"] = getContract({
     abi: abiAirdrop,
