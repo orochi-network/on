@@ -126,7 +126,7 @@ contract ONVestingSubBase is ONVestingSubBaseInterface {
         VestingSchedule memory vestingSchedule = schedule;
 
         // If there is no token then vesting schedule is invalid
-        if (_getRemainingBalance() <= 0) {
+        if (_getRemainingBalance() == 0) {
             revert InvalidVestingSchedule(account);
         }
 
