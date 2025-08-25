@@ -5,6 +5,7 @@
   "license": "Apache-2.0",
   "author": "Chiro <chiro@orochi.network>",
   "scripts": {
+    "verify": "sha256sum -c checksum.sha256",
     "coverage": "npx hardhat clean && SOLIDITY_COVERAGE=true npx hardhat coverage",
     "compile": "hardhat compile",
     "test": "hardhat test"
