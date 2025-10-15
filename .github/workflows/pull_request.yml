@@ -1,4 +1,4 @@
-name: 'Verify pull request'
+name: "Verify pull request"
 
 on:
   pull_request:
@@ -26,7 +26,7 @@ jobs:
           mkdir -p ~/.gnupg
           chmod 700 ~/.gnupg
 
-          printf '%s' "${{ secrets.ON_GPG_ALLOW_LIST }}" > allow-list.asc
+          echo "${{ secrets.GPG_ALLOW_LIST }}" | base64 -d > allow-list.asc
 
           gpg --import allow-list.asc
           gpg --list-keys --with-colons | awk -F: '/^fpr:/ { print $10 }' > .gpg-list.txt
@@ -43,7 +43,6 @@ jobs:
               exit 1
             fi
           done
-
       - name: Install dependencies
         run: yarn install
 
