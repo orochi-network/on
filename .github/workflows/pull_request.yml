@@ -26,7 +26,7 @@ jobs:
           mkdir -p ~/.gnupg
           chmod 700 ~/.gnupg
 
-          echo "${{ secrets.ON_GPG_ALLOW_LIST }}" > allow-list.asc
+          printf '%s' "${{ secrets.ON_GPG_ALLOW_LIST }}" > allow-list.asc
 
           gpg --import allow-list.asc
           gpg --list-keys --with-colons | awk -F: '/^fpr:/ { print $10 }' > .gpg-list.txt
