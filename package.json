@@ -5,7 +5,7 @@
   "license": "Apache-2.0",
   "author": "Chiro <chiro@orochi.network>",
   "scripts": {
-    "checksum": "sha256sum ./contracts/*.sol ./contracts/**/*.sol> checksum.sha256",
+    "checksum": "sha256sum ./contracts/*.sol ./contracts/**/*.sol > checksum.sha256",
     "verify": "sha256sum -c checksum.sha256",
     "coverage": "npx hardhat clean && SOLIDITY_COVERAGE=true npx hardhat coverage",
     "compile": "hardhat compile",
