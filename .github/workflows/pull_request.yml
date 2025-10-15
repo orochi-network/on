@@ -21,6 +21,9 @@ jobs:
       - name: Fetch main branch
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
 
+      - name: Install dependencies
+        run: yarn install
+
       - name: Import allowed GPG key list
         run: |
           mkdir -p ~/.gnupg
@@ -43,3 +46,9 @@ jobs:
               exit 1
             fi
           done
+          
+      - name: Check sha256 checksum
+        run: yarn verify
+
+      - name: Run test
+        run: yarn test
