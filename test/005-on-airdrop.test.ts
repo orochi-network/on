@@ -1,8 +1,8 @@
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
-import { parseEther } from "ethers";
+import { getBytes, hashMessage, parseEther, verifyMessage } from "ethers";
 import hre from "hardhat";
-import { zeroAddress } from "viem";
+import { token } from "../typechain-types/@openzeppelin/contracts";
 
 const ONE_DAY = BigInt(24 * 60 * 60);
 const ONE_MONTH = ONE_DAY * 30n;
@@ -11,7 +11,8 @@ const ONE_QUARTER = ONE_MONTH * 3n;
 describe("ONAirdrop", function () {
   async function fixture() {
     // Mock VestingTerm struct
-    const [owner, receiver1, receiver2, anyOne] = await hre.ethers.getSigners();
+    const [owner, receiver1, receiver2, anyOne, operator] =
+      await hre.ethers.getSigners();
 
     // Get block timestamp
     const block = await hre.ethers.provider.getBlock("latest");
@@ -42,7 +43,9 @@ describe("ONAirdrop", function () {
 
     // Deploy ONAirdrop
     const ONAirdrop = await hre.ethers.getContractFactory("ONAirdrop");
-    const onAirdrop = await ONAirdrop.connect(owner).deploy(onVestingMain);
+    const onAirdrop = await ONAirdrop.connect(owner).deploy(onVestingMain, [
+      operator,
+    ]);
     await onAirdrop.deploymentTransaction();
 
     await token.transferOwnership(onVestingMain);
@@ -50,8 +53,6 @@ describe("ONAirdrop", function () {
     await onVestingMain.mint();
 
     await onVestingMain.transfer(onAirdrop, parseEther("20000000"));
-
-    await onAirdrop.addRecipient([receiver1], [parseEther("1234")]);
 
     return {
       owner,
@@ -61,104 +62,207 @@ describe("ONAirdrop", function () {
       token,
       onVestingMain,
       onAirdrop,
+      operator,
       timeTGE,
     };
   }
 
+  it("Airdrop should be deploy correct", async function () {
+    const { onAirdrop, token } = await loadFixture(fixture);
+
+    expect(await onAirdrop.getToken()).to.eq(await token.getAddress());
+  });
+
   it("Should able to withdraw token after TGE", async function () {
-    const { receiver1, onAirdrop, onVestingMain } = await loadFixture(fixture);
+    const { receiver1, onAirdrop, onVestingMain, operator, token } =
+      await loadFixture(fixture);
 
-    time.increaseTo(await onVestingMain.getTimeTGE());
+    // Increase time to TGE time
+    await time.increaseTo(await onVestingMain.getTimeTGE());
 
-    expect(await onAirdrop.getAirdropBalance(receiver1)).to.eq(parseEther("1234"));
-
-    await expect(onAirdrop.connect(receiver1).claim()).to.emit(
-      onAirdrop,
-      "AirdropClaimed"
+    // Request to claim 1234 token
+    const requestClaim = await onAirdrop.getEncodeData(
+      receiver1,
+      parseEther("1234")
     );
 
-    await expect(
-      onAirdrop.connect(receiver1).claim()
-    ).to.revertedWithCustomError(onAirdrop, "AirdropTransferFailed");
+    // Sign the claim proof
+    const ecdsaProof = await operator.signMessage(getBytes(requestClaim));
 
-    expect(await onAirdrop.getAirdropBalance(receiver1)).to.eq(0n);
+    expect(
+      verifyMessage(getBytes(requestClaim), ecdsaProof),
+      "Invalid ECDSA signer"
+    ).to.eq(operator.address);
+
+    console.log("Operator address:", operator.address);
+
+    // User claim token
+    await expect(
+      onAirdrop.connect(receiver1).claim(ecdsaProof, parseEther("1234"))
+    ).to.emit(onAirdrop, "AirdropClaimed");
+
+    expect(await token.balanceOf(receiver1)).to.eq(parseEther("1234"));
+
+    expect(await onAirdrop.getRedeemed(receiver1)).to.eq(parseEther("1234"));
+
+    expect(await onAirdrop.getNonce(receiver1)).to.eq(1n);
   });
 
-  it("Should able to add new airdrop if length mistmatch", async function () {
-    const { receiver2, onAirdrop } = await loadFixture(fixture);
-    await expect(
-      onAirdrop.addRecipient(
-        [receiver2],
-        [parseEther("445"), parseEther("657")]
-      )
-    )
-      .to.revertedWithCustomError(onAirdrop, "RecipientAmountLengthMismatch")
-      .withArgs(1n, 2n);
+  it("Owner should able to add/remove operator", async function () {
+    const { onAirdrop, anyOne } = await loadFixture(fixture);
+
+    await onAirdrop.addOperator([anyOne]);
+
+    expect(await onAirdrop.isOperator(anyOne)).to.eq(true);
+
+    await onAirdrop.removeOperator([anyOne]);
+
+    expect(await onAirdrop.isOperator(anyOne)).to.eq(false);
   });
 
-  it("Should not able to add new airdrop if TGE started", async function () {
-    const { receiver2, onAirdrop, onVestingMain } = await loadFixture(fixture);
+  it("Owner should able to add/remove operator", async function () {
+    const { onAirdrop, anyOne } = await loadFixture(fixture);
 
-    time.increaseTo(await onVestingMain.getTimeTGE());
+    await onAirdrop.addOperator([anyOne]);
 
-    await expect(onAirdrop.addRecipient([receiver2], [parseEther("445")]))
-      .to.emit(onAirdrop, "AirdropRecipientAdded");
+    expect(await onAirdrop.isOperator(anyOne)).to.eq(true);
+
+    await onAirdrop.removeOperator([anyOne]);
+
+    expect(await onAirdrop.isOperator(anyOne)).to.eq(false);
   });
 
-  it("Should not able to claim before TGE started", async function () {
-    const { receiver1, onAirdrop } = await loadFixture(fixture);
+  it("Should not able to claim pre TGE", async function () {
+    const { receiver1, onAirdrop, operator } = await loadFixture(fixture);
 
+    // Request to claim 1234 token
+    const requestClaim = await onAirdrop.getEncodeData(
+      receiver1,
+      parseEther("1234")
+    );
+
+    // Sign the claim proof
+    const ecdsaProof = await operator.signMessage(getBytes(requestClaim));
+
+    // User claim token
     await expect(
-      onAirdrop.connect(receiver1).claim()
+      onAirdrop.connect(receiver1).claim(ecdsaProof, parseEther("1234"))
     ).to.revertedWithCustomError(onAirdrop, "TGENotStarted");
   });
 
-  it("Should have TGE time correct", async function () {
-    const { onVestingMain, timeTGE } = await loadFixture(fixture);
-
-    expect(
-      await onVestingMain.getTimeTGE()
-    ).to.equal(timeTGE);
-  });
-
-  it("Should able to remove recipient", async function () {
-    const { receiver1, onAirdrop } = await loadFixture(fixture);
-
-    expect(await onAirdrop.getAirdropBalance(receiver1)).to.eq(parseEther("1234"));
-    await expect(onAirdrop.removeRecipient([receiver1])).to.emit(
-      onAirdrop,
-      "AirdropRecipientRemoved"
-    );
-    expect(await onAirdrop.getAirdropBalance(receiver1)).to.eq(0n);
-  });
-
-  it("Should not able to add/remove recipient if you are not owner", async function () {
-    const { anyOne, receiver1, receiver2, onAirdrop } = await loadFixture(fixture);
-
-
-    await expect(onAirdrop.connect(anyOne).addRecipient([receiver2], [parseEther('1000')])).to.revertedWithCustomError(
-      onAirdrop,
-      "OwnableUnauthorizedAccount"
+  it("Should not able to claim with wrong opearator", async function () {
+    const { receiver1, onAirdrop, onVestingMain, anyOne } = await loadFixture(
+      fixture
     );
 
-    await expect(onAirdrop.connect(anyOne).removeRecipient([receiver1])).to.revertedWithCustomError(
-      onAirdrop,
-      "OwnableUnauthorizedAccount"
+    // Increase time to TGE time
+    await time.increaseTo(await onVestingMain.getTimeTGE());
+
+    // Request to claim 1234 token
+    const requestClaim = await onAirdrop.getEncodeData(
+      receiver1,
+      parseEther("1234")
     );
+
+    // Sign the claim proof
+    const ecdsaProof = await anyOne.signMessage(getBytes(requestClaim));
+
+    // User claim token
+    await expect(
+      onAirdrop.connect(receiver1).claim(ecdsaProof, parseEther("1234"))
+    ).to.revertedWithCustomError(onAirdrop, "InvalidProofSigner");
   });
 
-  it("Should ignore zero addresss and zero amount", async function () {
-    const { owner, receiver1, receiver2, onAirdrop } = await loadFixture(fixture);
+  it("Should not able to claim a wrong amount", async function () {
+    const { receiver1, onAirdrop, onVestingMain, operator } = await loadFixture(
+      fixture
+    );
 
+    // Increase time to TGE time
+    await time.increaseTo(await onVestingMain.getTimeTGE());
 
-    await onAirdrop.connect(owner).addRecipient([zeroAddress, receiver2], [parseEther('1000'), 0n]);
+    // Request to claim 1234 token
+    const requestClaim = await onAirdrop.getEncodeData(
+      receiver1,
+      parseEther("1234")
+    );
 
-    expect(await onAirdrop.getAirdropBalance(zeroAddress)).to.eq(0n);
-    expect(await onAirdrop.getAirdropBalance(receiver2)).to.eq(0n);
+    // Sign the claim proof
+    const ecdsaProof = await operator.signMessage(getBytes(requestClaim));
 
-    await onAirdrop.connect(owner).removeRecipient([zeroAddress, receiver1, receiver2]);
-    expect(await onAirdrop.getAirdropBalance(receiver2)).to.eq(0n);
-    expect(await onAirdrop.getAirdropBalance(receiver1)).to.eq(0n);
-    expect(await onAirdrop.getAirdropBalance(zeroAddress)).to.eq(0n);
+    // User claim token
+    await expect(
+      onAirdrop.connect(receiver1).claim(ecdsaProof, parseEther("2234"))
+    ).to.revertedWithCustomError(onAirdrop, "InvalidProofSigner");
+  });
+
+  it("Should not able to claim a wrong nonce", async function () {
+    const { receiver1, onAirdrop, onVestingMain, operator, token } =
+      await loadFixture(fixture);
+
+    // Increase time to TGE time
+    await time.increaseTo(await onVestingMain.getTimeTGE());
+
+    // Request to claim 1234 token
+    const requestClaim = await onAirdrop.getEncodeData(
+      receiver1,
+      parseEther("1234")
+    );
+
+    // Sign the claim proof
+    const ecdsaProof = await operator.signMessage(getBytes(requestClaim));
+
+    // User claim token
+    await expect(
+      onAirdrop.connect(receiver1).claim(ecdsaProof, parseEther("1234"))
+    ).to.emit(onAirdrop, "AirdropClaimed");
+
+    // User try to double claim
+    await expect(
+      onAirdrop.connect(receiver1).claim(ecdsaProof, parseEther("1234"))
+    ).to.revertedWithCustomError(onAirdrop, "InvalidProofSigner");
+
+    // Should not claim twice
+    expect(await token.balanceOf(receiver1)).to.eq(parseEther("1234"));
+  });
+
+  it("Should not able to claim 0", async function () {
+    const { receiver1, onAirdrop, onVestingMain, operator } = await loadFixture(
+      fixture
+    );
+
+    // Increase time to TGE time
+    await time.increaseTo(await onVestingMain.getTimeTGE());
+
+    // Request to claim 1234 token
+    const requestClaim = await onAirdrop.getEncodeData(
+      receiver1,
+      parseEther("0")
+    );
+
+    // Sign the claim proof
+    const ecdsaProof = await operator.signMessage(getBytes(requestClaim));
+
+    await expect(
+      onAirdrop.connect(receiver1).claim(ecdsaProof, parseEther("0"))
+    ).to.revertedWithCustomError(onAirdrop, "AirdropTransferFailed");
+  });
+
+  it("Should not able to add/remove operator if you are not owner", async function () {
+    const { owner, onAirdrop, anyOne, receiver1, operator } = await loadFixture(
+      fixture
+    );
+
+    await expect(
+      onAirdrop.connect(receiver1).addOperator([anyOne])
+    ).to.revertedWithCustomError(onAirdrop, "OwnableUnauthorizedAccount");
+
+    expect(await onAirdrop.isOperator(receiver1)).to.eq(false);
+
+    await expect(
+      onAirdrop.connect(receiver1).removeOperator([operator])
+    ).to.revertedWithCustomError(onAirdrop, "OwnableUnauthorizedAccount");
+
+    expect(await onAirdrop.isOperator(operator)).to.eq(true);
   });
 });

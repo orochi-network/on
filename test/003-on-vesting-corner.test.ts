@@ -99,9 +99,9 @@ describe("ONVestingMain", function () {
     await expect(
       onVestingMain.connect(anyOne).addVestingTerm(term)
     ).to.be.revertedWithCustomError(
-      onVestingMain, 'OwnableUnauthorizedAccount'
+      onVestingMain,
+      "OwnableUnauthorizedAccount"
     );
-
   });
 
   it("Should not able to add an invalid vesting term", async function () {
@@ -151,7 +151,8 @@ describe("ONVestingMain", function () {
 
     const timeTGE = await onVestingMain.getTimeTGE();
 
-    time.increaseTo(timeTGE);
+    await time.increaseTo(timeTGE);
+
     await expect(
       onVestingMain.setTimeTGE(timeTGE + ONE_DAY)
     ).to.revertedWithCustomError(onVestingMain, "TGEAlreadyStarted");
@@ -250,10 +251,9 @@ describe("ONVestingMain", function () {
 
     await onVestingMain.setTokenAddress(token);
 
-    await expect(onVestingMain.addVestingTerm(vestingTerm)).to.revertedWithCustomError(
-      token,
-      "ERC20InsufficientBalance"
-    );
+    await expect(
+      onVestingMain.addVestingTerm(vestingTerm)
+    ).to.revertedWithCustomError(token, "ERC20InsufficientBalance");
   });
 
   it("Should not able to set TGE time in the past", async function () {
@@ -265,11 +265,7 @@ describe("ONVestingMain", function () {
   });
 
   it("Should not able to transfer invalid token", async function () {
-    const {
-      token,
-      beneficiary1,
-      onVestingMain,
-    } = await loadFixture(fixture);
+    const { token, beneficiary1, onVestingMain } = await loadFixture(fixture);
 
     const MockTokenNoTransfer = await hre.ethers.getContractFactory(
       "MockTokenNoTransfer"
@@ -279,7 +275,9 @@ describe("ONVestingMain", function () {
 
     await onVestingMain.setTokenAddress(mockToken);
 
-    await expect(onVestingMain.transfer(beneficiary1, parseEther("100"))).to.revertedWithCustomError(onVestingMain, 'UnableToTransfer');
+    await expect(
+      onVestingMain.transfer(beneficiary1, parseEther("100"))
+    ).to.revertedWithCustomError(onVestingMain, "UnableToTransfer");
   });
 
   it("Should not able call if not owner", async function () {
@@ -293,32 +291,37 @@ describe("ONVestingMain", function () {
 
     const vestingMainFakeOwner = await onVestingMain.connect(anyOne);
 
-    await expect(vestingMainFakeOwner.mint()).to.revertedWithCustomError(vestingMainFakeOwner,
-      'OwnableUnauthorizedAccount'
+    await expect(vestingMainFakeOwner.mint()).to.revertedWithCustomError(
+      vestingMainFakeOwner,
+      "OwnableUnauthorizedAccount"
     );
 
     await expect(
       vestingMainFakeOwner.transfer(beneficiary1, parseEther("100"))
-    ).to.revertedWithCustomError(vestingMainFakeOwner,
-      'OwnableUnauthorizedAccount'
+    ).to.revertedWithCustomError(
+      vestingMainFakeOwner,
+      "OwnableUnauthorizedAccount"
     );
 
     await expect(
       vestingMainFakeOwner.setTokenAddress(beneficiary1)
-    ).to.revertedWithCustomError(vestingMainFakeOwner,
-      'OwnableUnauthorizedAccount'
+    ).to.revertedWithCustomError(
+      vestingMainFakeOwner,
+      "OwnableUnauthorizedAccount"
     );
 
     await expect(
       vestingMainFakeOwner.setImplementation(beneficiary1)
-    ).to.revertedWithCustomError(vestingMainFakeOwner,
-      'OwnableUnauthorizedAccount'
+    ).to.revertedWithCustomError(
+      vestingMainFakeOwner,
+      "OwnableUnauthorizedAccount"
     );
 
     await expect(
       vestingMainFakeOwner.setTimeTGE(blockTimestamp)
-    ).to.revertedWithCustomError(vestingMainFakeOwner,
-      'OwnableUnauthorizedAccount'
+    ).to.revertedWithCustomError(
+      vestingMainFakeOwner,
+      "OwnableUnauthorizedAccount"
     );
 
     await time.increaseTo(await onVestingMain.getTimeTGE());
@@ -342,12 +345,8 @@ describe("ONVestingMain", function () {
   });
 
   it("Should not able to call emergency with invalid token", async function () {
-    const {
-      token,
-      beneficiary1,
-      onVestingMain,
-      getOnVestingSubByIndex,
-    } = await loadFixture(fixture);
+    const { token, beneficiary1, onVestingMain, getOnVestingSubByIndex } =
+      await loadFixture(fixture);
 
     const MockTokenNoTransfer = await hre.ethers.getContractFactory(
       "MockTokenNoTransfer"
@@ -367,19 +366,22 @@ describe("ONVestingMain", function () {
   });
 
   it("Should not able to claim token before TGE", async function () {
-    const { beneficiary1, onVestingMain, getOnVestingSubByIndex, onVestingSubImpl, vestingTerm } =
-      await loadFixture(fixture);
+    const {
+      beneficiary1,
+      onVestingMain,
+      getOnVestingSubByIndex,
+      onVestingSubImpl,
+      vestingTerm,
+    } = await loadFixture(fixture);
 
     const term = {
       ...vestingTerm,
       unlockedAtTGE: 0n,
-    }
+    };
 
     await onVestingMain.addVestingTerm(term);
 
     const contract1 = await getOnVestingSubByIndex(1n);
-    expect(await contract1.getClaimableBalance()).to.eq(
-      0n
-    );
+    expect(await contract1.getClaimableBalance()).to.eq(0n);
   });
 });

@@ -103,11 +103,7 @@ contract MockAirdrop is ONAirdropBase, ReentrancyGuard {
     function getEncodeData(
         address beneficiary,
         uint256 amount
-    )
-        external
-        view
-        returns (bytes memory encodedData, bytes32 encodedMessageHash)
-    {
+    ) external view returns (bytes memory encodedData) {
         return _getEncodeData(beneficiary, amount);
     }
 }

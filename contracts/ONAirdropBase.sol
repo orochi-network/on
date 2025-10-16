@@ -98,14 +98,7 @@ contract ONAirdropBase {
         uint256 amount
     ) internal {
         // Recover signer from ECDSA proof (Wrong nonce will make the signature invalid)
-        address signer = abi
-            .encodePacked(
-                beneficiary,
-                amount,
-                nonceMap[beneficiary],
-                address(this),
-                block.chainid
-            )
+        address signer = _getEncodeData(beneficiary, amount)
             .toEthSignedMessageHash()
             .recover(ecdsaProof);
 
@@ -169,11 +162,7 @@ contract ONAirdropBase {
     function _getEncodeData(
         address beneficiary,
         uint256 amount
-    )
-        internal
-        view
-        returns (bytes memory encodedData, bytes32 encodedMessageHash)
-    {
+    ) internal view returns (bytes memory encodedData) {
         encodedData = abi.encodePacked(
             beneficiary,
             amount,
@@ -181,6 +170,6 @@ contract ONAirdropBase {
             address(this),
             block.chainid
         );
-        return (encodedData, encodedData.toEthSignedMessageHash());
+        return encodedData;
     }
 }
