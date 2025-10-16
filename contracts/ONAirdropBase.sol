@@ -77,7 +77,7 @@ contract ONAirdropBase {
      * Remove operators by a given list
      * @param listOperator List of operators
      */
-    function _removeOperator(address[] calldata listOperator) internal {
+    function _removeOperator(address[] memory listOperator) internal {
         for (uint256 i = 0; i < listOperator.length; i += 1) {
             operatorMap[listOperator[i]] = false;
             emit RemoveOperator(listOperator[i]);
@@ -99,7 +99,13 @@ contract ONAirdropBase {
     ) internal {
         // Recover signer from ECDSA proof (Wrong nonce will make the signature invalid)
         address signer = abi
-            .encodePacked(beneficiary, amount, nonceMap[beneficiary])
+            .encodePacked(
+                beneficiary,
+                amount,
+                nonceMap[beneficiary],
+                address(this),
+                block.chainid
+            )
             .toEthSignedMessageHash()
             .recover(ecdsaProof);
 
@@ -132,7 +138,7 @@ contract ONAirdropBase {
     }
 
     /**
-     * Check an address is a operator
+     * Check an address is an operator
      */
     function _isOperator(address givenAddress) internal view returns (bool) {
         return operatorMap[givenAddress];
@@ -171,7 +177,9 @@ contract ONAirdropBase {
         encodedData = abi.encodePacked(
             beneficiary,
             amount,
-            nonceMap[beneficiary]
+            nonceMap[beneficiary],
+            address(this),
+            block.chainid
         );
         return (encodedData, encodedData.toEthSignedMessageHash());
     }

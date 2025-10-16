@@ -47,9 +47,7 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
      * Add operators by a given list
      * @param listOperator List of operators
      */
-    function addOperator(
-        address[] calldata listOperator
-    ) external onlyOwner nonReentrant {
+    function addOperator(address[] memory listOperator) external onlyOwner {
         _addOperator(listOperator);
     }
 
@@ -57,9 +55,7 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
      * Remove operators by a given list
      * @param listOperator List of operators
      */
-    function removeOperator(
-        address[] calldata listOperator
-    ) external onlyOwner nonReentrant {
+    function removeOperator(address[] memory listOperator) external onlyOwner {
         _removeOperator(listOperator);
     }
 
@@ -75,7 +71,7 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
     }
 
     /**
-     * Check an address is a operator
+     * Check an address is an operator
      */
     function isOperator(address givenAddress) external view returns (bool) {
         return _isOperator(givenAddress);
