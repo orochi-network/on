@@ -86,7 +86,8 @@ describe("ONVestingMain", function () {
   }
 
   it("ONVestingMain should able to mint token", async function () {
-    const { ONVestingMain, Token, blockTimestamp, onVestingSubImpl, owner } = await loadFixture(fixture);
+    const { ONVestingMain, Token, blockTimestamp, onVestingSubImpl, owner } =
+      await loadFixture(fixture);
 
     // Deploy a token
     const token = await Token.deploy("Orochi", "ON");
@@ -104,13 +105,20 @@ describe("ONVestingMain", function () {
 
     await expect(onVestingMain.connect(owner).mint())
       .to.emit(token, "Transfer")
-      .withArgs(ZeroAddress, await onVestingMain.getAddress(), parseEther("700000000"));
+      .withArgs(
+        ZeroAddress,
+        await onVestingMain.getAddress(),
+        parseEther("700000000")
+      );
 
-    await expect(onVestingMain.connect(owner).mint()).to.revertedWithCustomError(token, 'AlreadyMinted');
+    await expect(
+      onVestingMain.connect(owner).mint()
+    ).to.revertedWithCustomError(token, "AlreadyMinted");
   });
 
   it("Should add a vesting term with zero unlocked at TGE", async function () {
-    const { owner, beneficiary2, onVestingMain, getOnVestingSubByIndex } = await loadFixture(fixture);
+    const { owner, beneficiary2, onVestingMain, getOnVestingSubByIndex } =
+      await loadFixture(fixture);
     // Cliff 3 months
     // Unlock at TGE 1,000
     // Total: 1,000,000
@@ -127,7 +135,6 @@ describe("ONVestingMain", function () {
     await expect(onVestingMain.connect(owner).addVestingTerm(term))
       .to.emit(onVestingMain, "AddNewVestingContract")
       .withArgs(1, anyValue, beneficiary2.address); // anyValue: address of new vesting contract
-
 
     const vestingContract = await getOnVestingSubByIndex(1n);
 
@@ -237,7 +244,7 @@ describe("ONVestingMain", function () {
       const beforeBalance = await token.balanceOf(beneficiary1);
       await time.increaseTo(currentTime);
       await vestingContract.claim();
-      const { balanceClaimable } = await vestingContract.getVestingDetail()
+      const { balanceClaimable } = await vestingContract.getVestingDetail();
       // After each claim, the claimable balance should be 0
       expect(balanceClaimable).to.be.equal(0n);
       const milestone = BigInt(
@@ -345,31 +352,78 @@ describe("ONVestingMain", function () {
   it("Should able to get all vesting detail if limit is too big", async function () {
     const { onVestingMain } = await loadFixture(fixture);
 
-    const vestingDetailList = await onVestingMain.getVestingDetailList(0n, 100n);
+    const vestingDetailList = await onVestingMain.getVestingDetailList(
+      0n,
+      100n
+    );
 
     expect(vestingDetailList.length).to.eq(1);
 
-    await expect(onVestingMain.getVestingDetailList(0n, 0n)).to.revertedWithCustomError(
-      onVestingMain,
-      "InvalidOffsetOrLimit"
-    );
+    await expect(
+      onVestingMain.getVestingDetailList(0n, 0n)
+    ).to.revertedWithCustomError(onVestingMain, "InvalidOffsetOrLimit");
   });
 
   it("Should stacking claim able over time", async function () {
     const { getOnVestingSubByIndex } = await loadFixture(fixture);
 
     const vestingContract = await getOnVestingSubByIndex(0n);
-    const {
-      start,
-      end,
-      milestoneDuration
-    } = await vestingContract.getVestingDetail();
+    const { start, end, milestoneDuration } =
+      await vestingContract.getVestingDetail();
     const data = [];
-    for (let currentTime = start; currentTime <= end; currentTime += milestoneDuration) {
+    for (
+      let currentTime = start;
+      currentTime <= end;
+      currentTime += milestoneDuration
+    ) {
       await time.increaseTo(currentTime);
-      const { start, end, milestoneClaimed, milestoneDuration, milestoneReleaseAmount, balanceClaimable } = await vestingContract.getVestingDetail();
-      data.push({ start, end, milestoneClaimed, milestoneDuration, milestoneReleaseAmount, balanceClaimable });
+      const {
+        start,
+        end,
+        milestoneClaimed,
+        milestoneDuration,
+        milestoneReleaseAmount,
+        balanceClaimable,
+      } = await vestingContract.getVestingDetail();
+      data.push({
+        start,
+        end,
+        milestoneClaimed,
+        milestoneDuration,
+        milestoneReleaseAmount,
+        balanceClaimable,
+      });
     }
     console.table(data);
+  });
+
+  it("Should able to claim unlocked token at TGE", async function () {
+    const {
+      beneficiary2,
+      vestingTerm,
+      token,
+      getOnVestingSubByIndex,
+      onVestingMain,
+    } = await loadFixture(fixture);
+
+    const newVesting = {
+      ...vestingTerm,
+      beneficiary: beneficiary2,
+      unlockedAtTGE: vestingTerm.total / 2n,
+    };
+
+    await onVestingMain.addVestingTerm(newVesting);
+
+    const vestingContract = (await getOnVestingSubByIndex(1n)).connect(
+      beneficiary2
+    );
+    await time.increaseTo(await onVestingMain.getTimeTGE());
+    await vestingContract.claim();
+    expect(await token.balanceOf(beneficiary2)).to.eq(vestingTerm.total / 2n);
+
+    await expect(vestingContract.claim()).to.revertedWithCustomError(
+      vestingContract,
+      "NoClaimableToken"
+    );
   });
 });

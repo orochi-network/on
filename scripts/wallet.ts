@@ -1,8 +1,10 @@
-import { writeFileSync, readFileSync, existsSync } from "fs";
-import { createInterface, Interface } from "readline/promises";
+import { RemoteWallet } from "@orochi-network/rwallet";
 import { HDNodeWallet, Wallet } from "ethers";
-import { Writable } from "stream";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
+import { createInterface, Interface } from "readline/promises";
+import { Writable } from "stream";
+import "./env";
 
 class InputConsole {
   private muted = false;
@@ -40,9 +42,9 @@ class InputConsole {
   }
 }
 
-const KEY_FILE = `${path.resolve(".")}/info.log`;
+const KEY_FILE = `${path.resolve(".")}/info.bin`;
 
-export async function getEncryptWallet(): Promise<HDNodeWallet | Wallet> {
+async function getEncryptWallet(): Promise<HDNodeWallet | Wallet> {
   const consoleInput = new InputConsole();
 
   if (!existsSync(KEY_FILE)) {
@@ -66,4 +68,22 @@ export async function getEncryptWallet(): Promise<HDNodeWallet | Wallet> {
 
   process.stdout.write(`\nRestore wallet: ${wallet.address}\n`);
   return wallet;
+}
+
+export async function getKmsWallet() {
+  const authenWallet = (await getEncryptWallet()) as HDNodeWallet;
+
+  const rwallet = new RemoteWallet(
+    {
+      url: "https://kms:7749",
+      clientCert: readFileSync("./client-tge-deployer-tls.crt"),
+      clientKey: readFileSync("./client-tge-deployer-tls.key"),
+      passphrase: readFileSync("./client-tge-deployer-tls.bin", "utf-8"),
+      rootCert: [readFileSync("./kms-ca.crt"), readFileSync("./root-ca.crt")],
+    },
+    authenWallet,
+    process.env.KMS_WALLET_ADDRESS
+  );
+
+  return rwallet;
 }

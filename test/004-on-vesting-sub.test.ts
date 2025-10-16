@@ -1,11 +1,10 @@
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
+import { ZeroAddress } from "ethers";
 import hre from "hardhat";
 import { zeroAddress } from "viem";
 import { ONVestingSub } from "../typechain-types";
-import { on } from "events";
-import { ZeroAddress } from "ethers";
 
 const ONE_DAY = BigInt(24 * 60 * 60);
 const ONE_MONTH = ONE_DAY * 30n;
@@ -159,9 +158,7 @@ describe("ONVestingSub", function () {
   });
 
   it("Should not able transfer vesting contract to zero-address", async function () {
-    const { getOnVestingSubByIndex, beneficiary1 } = await loadFixture(
-      fixture
-    );
+    const { getOnVestingSubByIndex, beneficiary1 } = await loadFixture(fixture);
 
     const vestingContract = await getOnVestingSubByIndex(0n);
 
@@ -170,39 +167,43 @@ describe("ONVestingSub", function () {
     ).to.revertedWithCustomError(vestingContract, "InvalidBeneficiary");
 
     await expect(
-      vestingContract.connect(beneficiary1).transferVestingContract(beneficiary1)
+      vestingContract
+        .connect(beneficiary1)
+        .transferVestingContract(beneficiary1)
     ).to.revertedWithCustomError(vestingContract, "InvalidBeneficiary");
   });
 
   it("Should not able init with zero addresses", async function () {
-    const { onVestingSubImpl, onVestingMain, vestingTerm, beneficiary2 } = await loadFixture(
-      fixture
-    );
+    const { onVestingSubImpl, onVestingMain, vestingTerm, beneficiary2 } =
+      await loadFixture(fixture);
 
-    await expect(onVestingSubImpl.init(ZeroAddress, {
-      ...vestingTerm,
-      beneficiary: beneficiary2.address,
-    })).to.revertedWithCustomError(onVestingSubImpl, "InvalidAddress");
+    await expect(
+      onVestingSubImpl.init(ZeroAddress, {
+        ...vestingTerm,
+        beneficiary: beneficiary2.address,
+      })
+    ).to.revertedWithCustomError(onVestingSubImpl, "InvalidAddress");
 
-    await expect(onVestingSubImpl.init(onVestingMain, {
-      ...vestingTerm,
-      beneficiary: ZeroAddress,
-    })).to.revertedWithCustomError(onVestingSubImpl, "InvalidAddress");
+    await expect(
+      onVestingSubImpl.init(onVestingMain, {
+        ...vestingTerm,
+        beneficiary: ZeroAddress,
+      })
+    ).to.revertedWithCustomError(onVestingSubImpl, "InvalidAddress");
   });
 
   it("Should able to init contract manualy", async function () {
-    const { onVestingSubImpl, onVestingMain, vestingTerm, beneficiary2 } = await loadFixture(
-      fixture
-    );
+    const { onVestingSubImpl, onVestingMain, vestingTerm, beneficiary2 } =
+      await loadFixture(fixture);
 
     const term = {
       ...vestingTerm,
       beneficiary: beneficiary2.address,
-
     };
     await expect(onVestingMain.transfer(onVestingSubImpl, term.total)).to.emit(
       onVestingMain,
-      "TransferToken");
-    await onVestingSubImpl.init(onVestingMain, term)
+      "TransferToken"
+    );
+    await onVestingSubImpl.init(onVestingMain, term);
   });
 });
