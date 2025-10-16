@@ -1,4 +1,4 @@
-name: 'Verify commit is signed or not when making a PR'
+name: 'Verify pull request'
 
 on:
   pull_request:
@@ -43,3 +43,11 @@ jobs:
               exit 1
             fi
           done
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Check sha256 checksum
+        run: yarn verify
+
+      - name: Run test
+        run: yarn test
