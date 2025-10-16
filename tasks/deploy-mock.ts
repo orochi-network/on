@@ -3,28 +3,35 @@ import { parseEther } from "ethers";
 import { task } from "hardhat/config";
 import { expect } from "chai";
 import { VestingTermStruct } from "../typechain-types/contracts/ONVestingMain";
-import { getEncryptWallet } from "../scripts/wallet";
+import { getKmsWallet } from "../scripts/wallet";
 
 const ONE_HOUR = 60n * 60n;
 const CONFIRMATION = 2;
 
 task("deploy-mock", "Deploy mock contracts").setAction(async (_args, hre) => {
   const beneficiary = "0x3FB52F41bd66ec0b59419F95f2612341262618ee";
-  const [account1] = await hre.ethers.getSigners();
+  const [account1, operator] = await hre.ethers.getSigners();
 
-  const deployer = (await getEncryptWallet()).connect(hre.ethers.provider);
+  const deployer = (await getKmsWallet()).connect(hre.ethers.provider);
 
   if (hre.network.name === "local" || hre.network.name === "hardhat") {
+    // Mine block on hardhat network
+    setInterval(async () => {
+      await hre.network.provider.send("evm_mine");
+    }, 500);
     await account1.sendTransaction({
-      to: deployer.address,
+      to: await deployer.getAddress(),
       value: parseEther("100"),
     });
   }
 
-  // Deploy a token
-  const Token = await hre.ethers.getContractFactory("OrochiNetworkToken");
-  const token = await Token.connect(deployer).deploy("Orochi", "ON");
-  await token.waitForDeployment();
+  // Deploy on token
+  const ONToken = await hre.ethers.getContractFactory("OrochiNetworkToken");
+  const onToken = await ONToken.connect(deployer).deploy(
+    "Orochi Network Token",
+    "ON"
+  );
+  await onToken.waitForDeployment();
 
   // Get block timestamp
   const block = await hre.ethers.provider.getBlock("latest");
@@ -44,7 +51,7 @@ task("deploy-mock", "Deploy mock contracts").setAction(async (_args, hre) => {
     "MockVestingMain"
   );
   const mockVestingMain = await MockVestingMain.connect(deployer).deploy(
-    token,
+    onToken,
     timeTGE,
     onVestingSubImpl
   );
@@ -52,11 +59,12 @@ task("deploy-mock", "Deploy mock contracts").setAction(async (_args, hre) => {
   // Deploy AirDrop
   const MockAirdrop = await hre.ethers.getContractFactory("MockAirdrop");
   const mockAirdrop = await MockAirdrop.connect(deployer).deploy(
-    mockVestingMain
+    mockVestingMain,
+    [operator]
   );
   await mockAirdrop.waitForDeployment();
 
-  await (await token.transferOwnership(mockVestingMain)).wait(CONFIRMATION);
+  await (await onToken.transferOwnership(mockVestingMain)).wait(CONFIRMATION);
 
   await (await mockVestingMain.mint()).wait(CONFIRMATION);
 
@@ -80,14 +88,10 @@ task("deploy-mock", "Deploy mock contracts").setAction(async (_args, hre) => {
     await mockVestingMain.transfer(mockAirdrop, parseEther("20000000"))
   ).wait(CONFIRMATION);
 
-  await (
-    await mockAirdrop.addRecipient([beneficiary], [parseEther("1000")])
-  ).wait(CONFIRMATION);
-
   console.table([
     {
       contractName: "Deployer",
-      address: deployer.address,
+      address: await deployer.getAddress(),
     },
     {
       contractName: "Beneficiary",
@@ -99,7 +103,7 @@ task("deploy-mock", "Deploy mock contracts").setAction(async (_args, hre) => {
     },
     {
       contractName: "Orochi Network Token",
-      address: await token.getAddress(),
+      address: await onToken.getAddress(),
     },
     {
       contractName: "Mock Vesting Main",

@@ -154,3 +154,6 @@ node_modules
 ignition/deployments/chain-31337
 salt.bin
 .DS_Store
+*.bin
+*.crt
+*.key

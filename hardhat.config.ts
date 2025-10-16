@@ -2,6 +2,10 @@ import fs from "fs";
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-viem";
+import "./scripts/env";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 if (fs.existsSync("./typechain-types")) {
   const dir = fs.opendirSync(`${__dirname}/tasks`);
@@ -36,8 +40,12 @@ export default {
     hardhat: {
       chainId: 911,
     },
+    ethereum: {
+      url: process.env.RPC_ETHEREUM_MAINNET,
+      chainId: 1,
+    },
     sepolia: {
-      url: "https://sepolia.drpc.org",
+      url: process.env.RPC_ETHEREUM_SEPOLIA,
       chainId: 11155111,
     },
   },
