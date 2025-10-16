@@ -19,8 +19,11 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
      * @param onVestingMainAddress The address of the vesting contract
      */
     constructor(
-        address onVestingMainAddress
-    ) Ownable(msg.sender) ONAirdropBase(onVestingMainAddress) {}
+        address onVestingMainAddress,
+        address[] memory listOperator
+    ) Ownable(msg.sender) ONAirdropBase(onVestingMainAddress) {
+        _addOperator(listOperator);
+    }
 
     /*******************************************************
      * External, after TGE
@@ -30,34 +33,34 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
      * Claim tokens for the user from airdrop
      * @dev Only callable after TGE
      */
-    function claim() external nonReentrant onlyPostTGE {
-        _claim(msg.sender);
+    function claim(
+        bytes calldata ecdsaProof,
+        uint256 amount
+    ) external nonReentrant onlyPostTGE {
+        _claim(ecdsaProof, msg.sender, amount);
     }
 
     /*******************************************************
-     * External Owner
+     * External view
      ********************************************************/
-
     /**
-     * Add users to the airdrop pool
-     * @param beneficaryList Array of beneficiaries
-     * @param amountList Array of amountList
+     * Add operators by a given list
+     * @param listOprerator List of operators
      */
-    function addRecipient(
-        address[] calldata beneficaryList,
-        uint256[] calldata amountList
-    ) external nonReentrant onlyOwner {
-        _addRecipient(beneficaryList, amountList);
+    function addOperator(
+        address[] calldata listOprerator
+    ) external onlyOwner nonReentrant {
+        _addOperator(listOprerator);
     }
 
     /**
-     * Remove users from the airdrop pool
-     * @param beneficaryList Array of beneficiaries
+     * Remove operators by a given list
+     * @param listOprerator List of operators
      */
-    function removeRecipient(
-        address[] calldata beneficaryList
-    ) external nonReentrant onlyOwner {
-        _removeRecipient(beneficaryList);
+    function removeOperator(
+        address[] calldata listOprerator
+    ) external onlyOwner nonReentrant {
+        _removeOperator(listOprerator);
     }
 
     /*******************************************************
@@ -65,12 +68,47 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
      ********************************************************/
 
     /**
-     * Balance of airdrop for the given account
-     * @param account Address of the account
+     * Get ON token instance
      */
-    function getAirdropBalance(
-        address account
-    ) external view returns (uint256) {
-        return _getAirdropBalance(account);
+    function getToken() external view returns (ONTokenInterface) {
+        return _getToken();
+    }
+
+    /**
+     * Check an address is a operator
+     */
+    function isOperator(address givenAddress) external view returns (bool) {
+        return _isOperator(givenAddress);
+    }
+
+    /**
+     * Get total redeemed of a given address
+     */
+    function getRedeemed(address givenAddress) internal view returns (uint256) {
+        return _getRedeemed(givenAddress);
+    }
+
+    /**
+     * Get nonce of a given address
+     */
+    function getNonce(address givenAddress) external view returns (uint256) {
+        return _getNonce(givenAddress);
+    }
+
+    /**
+     * Get encoded data and its message hash to make sure
+     * off-chain message encode is correct
+     * @param beneficiary Token receiver
+     * @param amount Amount of token
+     */
+    function getEncodeData(
+        address beneficiary,
+        uint256 amount
+    )
+        external
+        view
+        returns (bytes memory encodedData, bytes32 encodedMessageHash)
+    {
+        return _getEncodeData(beneficiary, amount);
     }
 }

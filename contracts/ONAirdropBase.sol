@@ -3,29 +3,38 @@ pragma solidity 0.8.26;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "./interfaces/ONCommon.sol";
 
 /**
  * @title Orochi Network Airdrop Base
  */
 contract ONAirdropBase {
+    using ECDSA for bytes32;
+
+    using MessageHashUtils for bytes;
+
     // Errors
     error AirdropTransferFailed(address beneficiary, uint256 amount);
-    error RecipientAmountLengthMismatch(
-        uint256 beneficiaryCount,
-        uint256 amountCount
-    );
+    error InvalidProofSigner(address signer);
 
     // Main vesting contract address
     ONVestingMainInterface immutable onVestingMain;
 
     // Airdrop map for airdrop recipients
-    mapping(address => uint256) private airdrop;
+    mapping(address => uint256) private nonceMap;
+
+    // Operator check
+    mapping(address => bool) private operatorMap;
+
+    // Redeemped map
+    mapping(address => uint256) private redeemMap;
 
     // Events
-    event AirdropClaimed(address account, uint256 amount);
-    event AirdropRecipientAdded(address account, uint256 amount);
-    event AirdropRecipientRemoved(address account);
+    event AirdropClaimed(address indexed account, uint256 indexed amount);
+    event AddOperator(address indexed operator);
+    event RemoveOperator(address indexed operator);
 
     /**
      * @dev Modifier to make sure that the TGE is started
@@ -51,6 +60,32 @@ contract ONAirdropBase {
     }
 
     /*******************************************************
+     * Internal Owner
+     ********************************************************/
+
+    /**
+     * Add operators by a given list
+     * @param listOprerator List of operators
+     */
+    function _addOperator(address[] memory listOprerator) internal {
+        for (uint256 i = 0; i < listOprerator.length; i += 1) {
+            operatorMap[listOprerator[i]] = true;
+            emit AddOperator(listOprerator[i]);
+        }
+    }
+
+    /**
+     * Remove operators by a given list
+     * @param listOprerator List of operators
+     */
+    function _removeOperator(address[] calldata listOprerator) internal {
+        for (uint256 i = 0; i < listOprerator.length; i += 1) {
+            operatorMap[listOprerator[i]] = false;
+            emit RemoveOperator(listOprerator[i]);
+        }
+    }
+
+    /*******************************************************
      * Internal
      ********************************************************/
 
@@ -58,52 +93,31 @@ contract ONAirdropBase {
      * Claim tokens for the user from airdrop
      * @dev Only callable after TGE
      */
-    function _claim(address beneficiary) internal {
-        uint256 amount = airdrop[beneficiary];
-        if (amount > 0 && _getToken().transfer(beneficiary, amount)) {
-            emit AirdropClaimed(beneficiary, amount);
-            airdrop[beneficiary] = 0;
-            return;
-        }
-        revert AirdropTransferFailed(beneficiary, amount);
-    }
-
-    /**
-     * Add users to the airdrop pool
-     * @dev Only callable by the owner before TGE. Emits TGEStarted event.
-     * @param beneficaryList Array of beneficiaries
-     * @param amountList Array of amountList
-     */
-    function _addRecipient(
-        address[] calldata beneficaryList,
-        uint256[] calldata amountList
+    function _claim(
+        bytes calldata ecdsaProof,
+        address beneficiary,
+        uint256 amount
     ) internal {
-        if (beneficaryList.length != amountList.length) {
-            revert RecipientAmountLengthMismatch(
-                beneficaryList.length,
-                amountList.length
-            );
-        }
-        for (uint256 i = 0; i < beneficaryList.length; i += 1) {
-            if (beneficaryList[i] != address(0) && amountList[i] > 0) {
-                airdrop[beneficaryList[i]] += amountList[i];
-                emit AirdropRecipientAdded(beneficaryList[i], amountList[i]);
-            }
-        }
-    }
+        // Recover signer from ECDSA proof (Wrong nonce will make the signature invalid)
+        address signer = abi
+            .encodePacked(beneficiary, amount, nonceMap[beneficiary])
+            .toEthSignedMessageHash()
+            .recover(ecdsaProof);
 
-    /**
-     * Remove users from the airdrop pool
-     * @dev Only callable by the owner before TGE. Emits TGEStarted event.
-     * @param beneficaryList Array of beneficiaries
-     */
-    function _removeRecipient(address[] calldata beneficaryList) internal {
-        for (uint256 i = 0; i < beneficaryList.length; i += 1) {
-            if (beneficaryList[i] != address(0)) {
-                airdrop[beneficaryList[i]] = 0;
-                emit AirdropRecipientRemoved(beneficaryList[i]);
-            }
+        // Signer must be the operator
+        if (!operatorMap[signer]) {
+            revert InvalidProofSigner(signer);
         }
+
+        // Process transfer
+        if (amount > 0 && _getToken().transfer(beneficiary, amount)) {
+            nonceMap[beneficiary] += 1;
+            redeemMap[beneficiary] += amount;
+            emit AirdropClaimed(beneficiary, amount);
+        }
+
+        // Unable to claim token due to transaction fail
+        revert AirdropTransferFailed(beneficiary, amount);
     }
 
     /*******************************************************
@@ -111,19 +125,54 @@ contract ONAirdropBase {
      ********************************************************/
 
     /**
-     * Balance of airdrop for the given account
-     * @param account Address of the account
-     */
-    function _getAirdropBalance(
-        address account
-    ) internal view returns (uint256) {
-        return airdrop[account];
-    }
-
-    /**
      * Get ON token instance
      */
     function _getToken() internal view returns (ONTokenInterface) {
         return ONTokenInterface(onVestingMain.getTokenAddress());
+    }
+
+    /**
+     * Check an address is a operator
+     */
+    function _isOperator(address givenAddress) internal view returns (bool) {
+        return operatorMap[givenAddress];
+    }
+
+    /**
+     * Get nonce of a given address
+     */
+    function _getNonce(address givenAddress) internal view returns (uint256) {
+        return nonceMap[givenAddress];
+    }
+
+    /**
+     * Get total redeemed of a given address
+     */
+    function _getRedeemed(
+        address givenAddress
+    ) internal view returns (uint256) {
+        return redeemMap[givenAddress];
+    }
+
+    /**
+     * Get encoded data and its message hash to make sure
+     * off-chain message encode is correct
+     * @param beneficiary Token receiver
+     * @param amount Amount of token
+     */
+    function _getEncodeData(
+        address beneficiary,
+        uint256 amount
+    )
+        internal
+        view
+        returns (bytes memory encodedData, bytes32 encodedMessageHash)
+    {
+        encodedData = abi.encodePacked(
+            beneficiary,
+            amount,
+            nonceMap[beneficiary]
+        );
+        return (encodedData, encodedData.toEthSignedMessageHash());
     }
 }
