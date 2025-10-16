@@ -41,7 +41,7 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
     }
 
     /*******************************************************
-     * External view
+     * External Owner
      ********************************************************/
     /**
      * Add operators by a given list
@@ -62,7 +62,7 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
     }
 
     /*******************************************************
-     * External view
+     * External View
      ********************************************************/
 
     /**
