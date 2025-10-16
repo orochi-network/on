@@ -1,8 +1,7 @@
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
-import { getBytes, hashMessage, parseEther, verifyMessage } from "ethers";
+import { getBytes, parseEther, verifyMessage } from "ethers";
 import hre from "hardhat";
-import { token } from "../typechain-types/@openzeppelin/contracts";
 
 const ONE_DAY = BigInt(24 * 60 * 60);
 const ONE_MONTH = ONE_DAY * 30n;
@@ -120,18 +119,6 @@ describe("ONAirdrop", function () {
     expect(await onAirdrop.isOperator(anyOne)).to.eq(false);
   });
 
-  it("Owner should able to add/remove operator", async function () {
-    const { onAirdrop, anyOne } = await loadFixture(fixture);
-
-    await onAirdrop.addOperator([anyOne]);
-
-    expect(await onAirdrop.isOperator(anyOne)).to.eq(true);
-
-    await onAirdrop.removeOperator([anyOne]);
-
-    expect(await onAirdrop.isOperator(anyOne)).to.eq(false);
-  });
-
   it("Should not able to claim pre TGE", async function () {
     const { receiver1, onAirdrop, operator } = await loadFixture(fixture);
 
@@ -150,7 +137,7 @@ describe("ONAirdrop", function () {
     ).to.revertedWithCustomError(onAirdrop, "TGENotStarted");
   });
 
-  it("Should not able to claim with wrong opearator", async function () {
+  it("Should not able to claim with wrong operator", async function () {
     const { receiver1, onAirdrop, onVestingMain, anyOne } = await loadFixture(
       fixture
     );

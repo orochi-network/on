@@ -1,9 +1,9 @@
 import { RemoteWallet } from "@orochi-network/rwallet";
-import { writeFileSync, readFileSync, existsSync } from "fs";
-import { createInterface, Interface } from "readline/promises";
-import { HDNodeWallet, Wallet, ZeroAddress } from "ethers";
-import { Writable } from "stream";
+import { HDNodeWallet, Wallet } from "ethers";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
+import { createInterface, Interface } from "readline/promises";
+import { Writable } from "stream";
 import "./env";
 
 class InputConsole {
