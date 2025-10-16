@@ -47,7 +47,7 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
      * Add operators by a given list
      * @param listOperator List of operators
      */
-    function addOperator(address[] memory listOperator) external onlyOwner {
+    function addOperator(address[] calldata listOperator) external onlyOwner {
         _addOperator(listOperator);
     }
 
@@ -55,7 +55,9 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
      * Remove operators by a given list
      * @param listOperator List of operators
      */
-    function removeOperator(address[] memory listOperator) external onlyOwner {
+    function removeOperator(
+        address[] calldata listOperator
+    ) external onlyOwner {
         _removeOperator(listOperator);
     }
 
@@ -93,7 +95,7 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
 
     /**
      * Get encoded data and its message hash to make sure
-     * off-chain message encode is correct
+     * off-chain message encoding is correct
      * @param beneficiary Token receiver
      * @param amount Amount of token
      */

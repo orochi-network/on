@@ -96,7 +96,7 @@ contract MockAirdrop is ONAirdropBase, ReentrancyGuard {
 
     /**
      * Get encoded data and its message hash to make sure
-     * off-chain message encode is correct
+     * off-chain message encoding is correct
      * @param beneficiary Token receiver
      * @param amount Amount of token
      */
