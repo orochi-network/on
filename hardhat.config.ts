@@ -41,11 +41,11 @@ export default {
       chainId: 911,
     },
     ethereum: {
-      url: process.env.RPC_ETHEREUM_MAINNET,
+      url: process.env.RPC_ETHEREUM_MAINNET ?? "http://localhost:8545",
       chainId: 1,
     },
     sepolia: {
-      url: process.env.RPC_ETHEREUM_SEPOLIA,
+      url: process.env.RPC_ETHEREUM_SEPOLIA ?? "http://localhost:8545",
       chainId: 11155111,
     },
   },
