@@ -45,22 +45,22 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
      ********************************************************/
     /**
      * Add operators by a given list
-     * @param listOprerator List of operators
+     * @param listOperator List of operators
      */
     function addOperator(
-        address[] calldata listOprerator
+        address[] calldata listOperator
     ) external onlyOwner nonReentrant {
-        _addOperator(listOprerator);
+        _addOperator(listOperator);
     }
 
     /**
      * Remove operators by a given list
-     * @param listOprerator List of operators
+     * @param listOperator List of operators
      */
     function removeOperator(
-        address[] calldata listOprerator
+        address[] calldata listOperator
     ) external onlyOwner nonReentrant {
-        _removeOperator(listOprerator);
+        _removeOperator(listOperator);
     }
 
     /*******************************************************
@@ -84,7 +84,7 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
     /**
      * Get total redeemed of a given address
      */
-    function getRedeemed(address givenAddress) internal view returns (uint256) {
+    function getRedeemed(address givenAddress) external view returns (uint256) {
         return _getRedeemed(givenAddress);
     }
 

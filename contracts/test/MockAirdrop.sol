@@ -44,22 +44,22 @@ contract MockAirdrop is ONAirdropBase, ReentrancyGuard {
      ********************************************************/
     /**
      * Add operators by a given list
-     * @param listOprerator List of operators
+     * @param listOperator List of operators
      */
     function addOperator(
-        address[] calldata listOprerator
+        address[] calldata listOperator
     ) external nonReentrant {
-        _addOperator(listOprerator);
+        _addOperator(listOperator);
     }
 
     /**
      * Remove operators by a given list
-     * @param listOprerator List of operators
+     * @param listOperator List of operators
      */
     function removeOperator(
-        address[] calldata listOprerator
+        address[] calldata listOperator
     ) external nonReentrant {
-        _removeOperator(listOprerator);
+        _removeOperator(listOperator);
     }
 
     /*******************************************************

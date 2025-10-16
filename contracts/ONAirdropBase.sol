@@ -2,7 +2,6 @@
 pragma solidity 0.8.26;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "./interfaces/ONCommon.sol";
@@ -28,7 +27,7 @@ contract ONAirdropBase {
     // Operator check
     mapping(address => bool) private operatorMap;
 
-    // Redeemped map
+    // Redeemed map
     mapping(address => uint256) private redeemMap;
 
     // Events
@@ -65,23 +64,23 @@ contract ONAirdropBase {
 
     /**
      * Add operators by a given list
-     * @param listOprerator List of operators
+     * @param listOperator List of operators
      */
-    function _addOperator(address[] memory listOprerator) internal {
-        for (uint256 i = 0; i < listOprerator.length; i += 1) {
-            operatorMap[listOprerator[i]] = true;
-            emit AddOperator(listOprerator[i]);
+    function _addOperator(address[] memory listOperator) internal {
+        for (uint256 i = 0; i < listOperator.length; i += 1) {
+            operatorMap[listOperator[i]] = true;
+            emit AddOperator(listOperator[i]);
         }
     }
 
     /**
      * Remove operators by a given list
-     * @param listOprerator List of operators
+     * @param listOperator List of operators
      */
-    function _removeOperator(address[] calldata listOprerator) internal {
-        for (uint256 i = 0; i < listOprerator.length; i += 1) {
-            operatorMap[listOprerator[i]] = false;
-            emit RemoveOperator(listOprerator[i]);
+    function _removeOperator(address[] calldata listOperator) internal {
+        for (uint256 i = 0; i < listOperator.length; i += 1) {
+            operatorMap[listOperator[i]] = false;
+            emit RemoveOperator(listOperator[i]);
         }
     }
 
@@ -114,6 +113,7 @@ contract ONAirdropBase {
             nonceMap[beneficiary] += 1;
             redeemMap[beneficiary] += amount;
             emit AirdropClaimed(beneficiary, amount);
+            return;
         }
 
         // Unable to claim token due to transaction fail
