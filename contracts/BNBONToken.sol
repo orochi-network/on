@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /**
  * @title Orochi Network Token
  */
-contract OrochiNetworkToken is ERC20, Ownable {
+contract BNBOrochiNetworkToken is ERC20, Ownable {
     error AlreadyMinted(uint256 totalSupply);
 
     /**
@@ -32,7 +32,7 @@ contract OrochiNetworkToken is ERC20, Ownable {
         if (totalSupply() > 0) {
             revert AlreadyMinted(totalSupply());
         }
-        _mint(owner(), 600_000_000 ether);
+        _mint(owner(), 100_000_000 ether);
         return true;
     }
 }

@@ -35,9 +35,17 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
      */
     function claim(
         bytes calldata ecdsaProof,
-        uint256 amount
+        ProofPayloadInput calldata payloadInput
     ) external nonReentrant onlyPostTGE {
-        _claim(ecdsaProof, msg.sender, amount);
+        ProofPayload memory payload = ProofPayload({
+            beneficiary: msg.sender,
+            chainid: uint64(block.chainid),
+            contractAddress: address(this),
+            nonce: payloadInput.nonce,
+            timestamp: payloadInput.timestamp,
+            amount: payloadInput.amount
+        });
+        _claim(ecdsaProof, payload);
     }
 
     /*******************************************************
@@ -82,15 +90,10 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
     /**
      * Get total redeemed of a given address
      */
-    function getRedeemed(address givenAddress) external view returns (uint256) {
-        return _getRedeemed(givenAddress);
-    }
-
-    /**
-     * Get nonce of a given address
-     */
-    function getNonce(address givenAddress) external view returns (uint256) {
-        return _getNonce(givenAddress);
+    function getAirdropDetail(
+        address givenAddress
+    ) external view returns (AidropDetail memory detail) {
+        return _getAirdropDetail(givenAddress);
     }
 
     /**
@@ -99,10 +102,15 @@ contract ONAirdrop is ONAirdropBase, ReentrancyGuard, Ownable {
      * @param beneficiary Token receiver
      * @param amount Amount of token
      */
-    function getEncodeData(
+    function getPayload(
         address beneficiary,
         uint256 amount
-    ) external view returns (bytes memory encodedData) {
-        return _getEncodeData(beneficiary, amount);
+    )
+        external
+        view
+        returns (ProofPayload memory payload, bytes memory encoded)
+    {
+        payload = _getPayload(beneficiary, amount);
+        encoded = abi.encode(payload);
     }
 }
