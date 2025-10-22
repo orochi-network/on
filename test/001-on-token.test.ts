@@ -24,9 +24,9 @@ describe("OrochiNetworkToken", function () {
     const { token, owner } = await loadFixture(deployTokenFixture);
     await expect(token.connect(owner).mint())
       .to.emit(token, "Transfer")
-      .withArgs(ZeroAddress, await owner.getAddress(), parseEther("700000000"));
+      .withArgs(ZeroAddress, await owner.getAddress(), parseEther("600000000"));
     expect(await token.balanceOf(await owner.getAddress())).to.equal(
-      parseEther("700000000")
+      parseEther("600000000")
     );
   });
 
@@ -34,26 +34,28 @@ describe("OrochiNetworkToken", function () {
     const { token, owner } = await loadFixture(deployTokenFixture);
     await expect(token.connect(owner).mint())
       .to.emit(token, "Transfer")
-      .withArgs(ZeroAddress, await owner.getAddress(), parseEther("700000000"));
+      .withArgs(ZeroAddress, await owner.getAddress(), parseEther("600000000"));
     expect(await token.balanceOf(await owner.getAddress())).to.equal(
-      parseEther("700000000")
+      parseEther("600000000")
     );
 
     await expect(token.connect(owner).mint()).to.revertedWithCustomError(
-      token, 'AlreadyMinted'
+      token,
+      "AlreadyMinted"
     );
   });
 
   it("Non-owner cannot mint tokens", async function () {
     const { token, addr1 } = await loadFixture(deployTokenFixture);
     await expect(token.connect(addr1).mint()).to.be.revertedWithCustomError(
-      token, 'OwnableUnauthorizedAccount'
+      token,
+      "OwnableUnauthorizedAccount"
     );
   });
 
   it("Total supply increases with mint", async function () {
     const { token, owner } = await loadFixture(deployTokenFixture);
     await token.connect(owner).mint();
-    expect(await token.totalSupply()).to.equal(parseEther("700000000"));
+    expect(await token.totalSupply()).to.equal(parseEther("600000000"));
   });
 });

@@ -14,9 +14,35 @@ contract ONAirdropBase {
 
     using MessageHashUtils for bytes;
 
+    // Proof payload
+    struct ProofPayload {
+        address beneficiary;
+        uint256 amount;
+        uint256 nonce;
+        address contractAddress;
+        uint64 chainid;
+        uint64 timestamp;
+    }
+
+    // Proof payload input
+    struct ProofPayloadInput {
+        uint256 amount;
+        uint256 nonce;
+        uint64 timestamp;
+    }
+
+    // Airdrop Detail
+    struct AidropDetail {
+        uint256 nonce;
+        uint256 redeemed;
+        uint256 timestamp;
+    }
+
     // Errors
     error AirdropTransferFailed(address beneficiary, uint256 amount);
     error InvalidProofSigner(address signer);
+    error InvalidTimestamp(uint256 blockTimestamp, uint256 payloadTimestamp);
+    error InvalidNonce(address beneficiary, uint256 nonce);
 
     // Main vesting contract address
     ONVestingMainInterface immutable onVestingMain;
@@ -94,29 +120,41 @@ contract ONAirdropBase {
      */
     function _claim(
         bytes calldata ecdsaProof,
-        address beneficiary,
-        uint256 amount
+        ProofPayload memory payload
     ) internal {
         // Recover signer from ECDSA proof (Wrong nonce will make the signature invalid)
-        address signer = _getEncodeData(beneficiary, amount)
-            .toEthSignedMessageHash()
-            .recover(ecdsaProof);
+        address signer = abi.encode(payload).toEthSignedMessageHash().recover(
+            ecdsaProof
+        );
 
         // Signer must be the operator
         if (!operatorMap[signer]) {
             revert InvalidProofSigner(signer);
         }
 
+        // Each proof validate for 5 mins
+        if (block.timestamp > payload.timestamp + 300) {
+            revert InvalidTimestamp(block.timestamp, payload.timestamp);
+        }
+
+        // Nonce map
+        if (nonceMap[payload.beneficiary] != payload.nonce) {
+            revert InvalidNonce(payload.beneficiary, payload.nonce);
+        }
+
         // Process transfer
-        if (amount > 0 && _getToken().transfer(beneficiary, amount)) {
-            nonceMap[beneficiary] += 1;
-            redeemMap[beneficiary] += amount;
-            emit AirdropClaimed(beneficiary, amount);
+        if (
+            payload.amount > 0 &&
+            _getToken().transfer(payload.beneficiary, payload.amount)
+        ) {
+            nonceMap[payload.beneficiary] += 1;
+            redeemMap[payload.beneficiary] += payload.amount;
+            emit AirdropClaimed(payload.beneficiary, payload.amount);
             return;
         }
 
         // Unable to claim token due to transaction fail
-        revert AirdropTransferFailed(beneficiary, amount);
+        revert AirdropTransferFailed(payload.beneficiary, payload.amount);
     }
 
     /*******************************************************
@@ -138,19 +176,17 @@ contract ONAirdropBase {
     }
 
     /**
-     * Get nonce of a given address
-     */
-    function _getNonce(address givenAddress) internal view returns (uint256) {
-        return nonceMap[givenAddress];
-    }
-
-    /**
      * Get total redeemed of a given address
      */
-    function _getRedeemed(
+    function _getAirdropDetail(
         address givenAddress
-    ) internal view returns (uint256) {
-        return redeemMap[givenAddress];
+    ) internal view returns (AidropDetail memory airdropDetail) {
+        return
+            AidropDetail({
+                timestamp: block.timestamp,
+                nonce: nonceMap[givenAddress],
+                redeemed: redeemMap[givenAddress]
+            });
     }
 
     /**
@@ -159,17 +195,18 @@ contract ONAirdropBase {
      * @param beneficiary Token receiver
      * @param amount Amount of token
      */
-    function _getEncodeData(
+    function _getPayload(
         address beneficiary,
         uint256 amount
-    ) internal view returns (bytes memory encodedData) {
-        encodedData = abi.encodePacked(
-            beneficiary,
-            amount,
-            nonceMap[beneficiary],
-            address(this),
-            block.chainid
-        );
-        return encodedData;
+    ) internal view returns (ProofPayload memory payload) {
+        return
+            ProofPayload({
+                beneficiary: beneficiary,
+                amount: amount,
+                nonce: nonceMap[beneficiary],
+                contractAddress: address(this),
+                chainid: uint64(block.chainid),
+                timestamp: uint64(block.timestamp)
+            });
     }
 }
