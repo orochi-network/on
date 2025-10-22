@@ -108,7 +108,7 @@ describe("ONVestingMain", function () {
       .withArgs(
         ZeroAddress,
         await onVestingMain.getAddress(),
-        parseEther("700000000")
+        parseEther("600000000")
       );
 
     await expect(

@@ -1,6 +1,6 @@
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
-import { getBytes, parseEther, verifyMessage } from "ethers";
+import { AbiCoder, ethers, getBytes, parseEther, verifyMessage } from "ethers";
 import hre from "hardhat";
 
 const ONE_DAY = BigInt(24 * 60 * 60);
@@ -80,16 +80,16 @@ describe("ONAirdrop", function () {
     await time.increaseTo(await onVestingMain.getTimeTGE());
 
     // Request to claim 1234 token
-    const requestClaim = await onAirdrop.getEncodeData(
-      receiver1,
-      parseEther("1234")
-    );
+    const {
+      payload: { nonce, amount, timestamp },
+      encoded,
+    } = await onAirdrop.getPayload(receiver1, parseEther("1234"));
 
     // Sign the claim proof
-    const ecdsaProof = await operator.signMessage(getBytes(requestClaim));
+    const ecdsaProof = await operator.signMessage(getBytes(encoded));
 
     expect(
-      verifyMessage(getBytes(requestClaim), ecdsaProof),
+      verifyMessage(getBytes(encoded), ecdsaProof),
       "Invalid ECDSA signer"
     ).to.eq(operator.address);
 
@@ -97,14 +97,18 @@ describe("ONAirdrop", function () {
 
     // User claim token
     await expect(
-      onAirdrop.connect(receiver1).claim(ecdsaProof, parseEther("1234"))
+      onAirdrop
+        .connect(receiver1)
+        .claim(ecdsaProof, { nonce, amount, timestamp })
     ).to.emit(onAirdrop, "AirdropClaimed");
 
     expect(await token.balanceOf(receiver1)).to.eq(parseEther("1234"));
 
-    expect(await onAirdrop.getRedeemed(receiver1)).to.eq(parseEther("1234"));
+    const detail = await onAirdrop.getAirdropDetail(receiver1);
 
-    expect(await onAirdrop.getNonce(receiver1)).to.eq(1n);
+    expect(detail.redeemed).to.eq(parseEther("1234"));
+
+    expect(detail.nonce).to.eq(1n);
   });
 
   it("Owner should able to add/remove operator", async function () {
@@ -123,17 +127,19 @@ describe("ONAirdrop", function () {
     const { receiver1, onAirdrop, operator } = await loadFixture(fixture);
 
     // Request to claim 1234 token
-    const requestClaim = await onAirdrop.getEncodeData(
-      receiver1,
-      parseEther("1234")
-    );
+    const {
+      payload: { nonce, amount, timestamp },
+      encoded,
+    } = await onAirdrop.getPayload(receiver1, parseEther("1234"));
 
     // Sign the claim proof
-    const ecdsaProof = await operator.signMessage(getBytes(requestClaim));
+    const ecdsaProof = await operator.signMessage(getBytes(encoded));
 
     // User claim token
     await expect(
-      onAirdrop.connect(receiver1).claim(ecdsaProof, parseEther("1234"))
+      onAirdrop
+        .connect(receiver1)
+        .claim(ecdsaProof, { nonce, amount, timestamp })
     ).to.revertedWithCustomError(onAirdrop, "TGENotStarted");
   });
 
@@ -146,17 +152,19 @@ describe("ONAirdrop", function () {
     await time.increaseTo(await onVestingMain.getTimeTGE());
 
     // Request to claim 1234 token
-    const requestClaim = await onAirdrop.getEncodeData(
-      receiver1,
-      parseEther("1234")
-    );
+    const {
+      payload: { nonce, amount, timestamp },
+      encoded,
+    } = await onAirdrop.getPayload(receiver1, parseEther("1234"));
 
     // Sign the claim proof
-    const ecdsaProof = await anyOne.signMessage(getBytes(requestClaim));
+    const ecdsaProof = await anyOne.signMessage(getBytes(encoded));
 
     // User claim token
     await expect(
-      onAirdrop.connect(receiver1).claim(ecdsaProof, parseEther("1234"))
+      onAirdrop
+        .connect(receiver1)
+        .claim(ecdsaProof, { nonce, amount, timestamp })
     ).to.revertedWithCustomError(onAirdrop, "InvalidProofSigner");
   });
 
@@ -169,17 +177,19 @@ describe("ONAirdrop", function () {
     await time.increaseTo(await onVestingMain.getTimeTGE());
 
     // Request to claim 1234 token
-    const requestClaim = await onAirdrop.getEncodeData(
-      receiver1,
-      parseEther("1234")
-    );
+    const {
+      payload: { nonce, amount, timestamp },
+      encoded,
+    } = await onAirdrop.getPayload(receiver1, parseEther("1234"));
 
     // Sign the claim proof
-    const ecdsaProof = await operator.signMessage(getBytes(requestClaim));
+    const ecdsaProof = await operator.signMessage(getBytes(encoded));
 
     // User claim token
     await expect(
-      onAirdrop.connect(receiver1).claim(ecdsaProof, parseEther("2234"))
+      onAirdrop
+        .connect(receiver1)
+        .claim(ecdsaProof, { nonce, amount: parseEther("1244"), timestamp })
     ).to.revertedWithCustomError(onAirdrop, "InvalidProofSigner");
   });
 
@@ -191,23 +201,27 @@ describe("ONAirdrop", function () {
     await time.increaseTo(await onVestingMain.getTimeTGE());
 
     // Request to claim 1234 token
-    const requestClaim = await onAirdrop.getEncodeData(
-      receiver1,
-      parseEther("1234")
-    );
+    const {
+      payload: { nonce, amount, timestamp },
+      encoded,
+    } = await onAirdrop.getPayload(receiver1, parseEther("1234"));
 
     // Sign the claim proof
-    const ecdsaProof = await operator.signMessage(getBytes(requestClaim));
+    const ecdsaProof = await operator.signMessage(getBytes(encoded));
 
     // User claim token
     await expect(
-      onAirdrop.connect(receiver1).claim(ecdsaProof, parseEther("1234"))
+      onAirdrop
+        .connect(receiver1)
+        .claim(ecdsaProof, { nonce, amount, timestamp })
     ).to.emit(onAirdrop, "AirdropClaimed");
 
     // User try to double claim
     await expect(
-      onAirdrop.connect(receiver1).claim(ecdsaProof, parseEther("1234"))
-    ).to.revertedWithCustomError(onAirdrop, "InvalidProofSigner");
+      onAirdrop
+        .connect(receiver1)
+        .claim(ecdsaProof, { nonce, amount, timestamp })
+    ).to.revertedWithCustomError(onAirdrop, "InvalidNonce");
 
     // Should not claim twice
     expect(await token.balanceOf(receiver1)).to.eq(parseEther("1234"));
@@ -221,17 +235,19 @@ describe("ONAirdrop", function () {
     // Increase time to TGE time
     await time.increaseTo(await onVestingMain.getTimeTGE());
 
-    // Request to claim 1234 token
-    const requestClaim = await onAirdrop.getEncodeData(
-      receiver1,
-      parseEther("0")
-    );
+    // Request to claim 0 token
+    const {
+      payload: { nonce, amount, timestamp },
+      encoded,
+    } = await onAirdrop.getPayload(receiver1, parseEther("0"));
 
     // Sign the claim proof
-    const ecdsaProof = await operator.signMessage(getBytes(requestClaim));
+    const ecdsaProof = await operator.signMessage(getBytes(encoded));
 
     await expect(
-      onAirdrop.connect(receiver1).claim(ecdsaProof, parseEther("0"))
+      onAirdrop
+        .connect(receiver1)
+        .claim(ecdsaProof, { nonce, amount, timestamp })
     ).to.revertedWithCustomError(onAirdrop, "AirdropTransferFailed");
   });
 
