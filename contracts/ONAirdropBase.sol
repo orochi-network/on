@@ -32,7 +32,7 @@ contract ONAirdropBase {
     }
 
     // Airdrop Detail
-    struct AidropDetail {
+    struct AirdropDetail {
         uint256 nonce;
         uint256 redeemed;
         uint256 timestamp;
@@ -180,9 +180,9 @@ contract ONAirdropBase {
      */
     function _getAirdropDetail(
         address givenAddress
-    ) internal view returns (AidropDetail memory airdropDetail) {
+    ) internal view returns (AirdropDetail memory airdropDetail) {
         return
-            AidropDetail({
+            AirdropDetail({
                 timestamp: block.timestamp,
                 nonce: nonceMap[givenAddress],
                 redeemed: redeemMap[givenAddress]

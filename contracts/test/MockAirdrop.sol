@@ -93,7 +93,7 @@ contract MockAirdrop is ONAirdropBase, ReentrancyGuard {
      */
     function getAirdropDetail(
         address givenAddress
-    ) external view returns (AidropDetail memory detail) {
+    ) external view returns (AirdropDetail memory detail) {
         return _getAirdropDetail(givenAddress);
     }
 
