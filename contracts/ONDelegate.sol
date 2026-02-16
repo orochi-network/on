@@ -71,7 +71,7 @@ contract ONDelegate is ReentrancyGuard, Ownable {
     }
 
     /*******************************************************
-     * Intertnal methods
+     * Internal methods
      ********************************************************/
 
     /**
