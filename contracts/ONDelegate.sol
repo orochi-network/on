@@ -128,7 +128,7 @@ contract ONDelegate is ReentrancyGuard, Ownable {
         address delegator;
         for (uint256 i = 0; i < listDelegator.length; i += 1) {
             delegator = listDelegator[i];
-            if (!delegation[delegator].whitelist != newWhitelistStatus) {
+            if (delegation[delegator].whitelist != newWhitelistStatus) {
                 delegation[delegator].whitelist = newWhitelistStatus;
                 if (newWhitelistStatus) {
                     emit DelegatorAdded(delegator);
