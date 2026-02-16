@@ -147,7 +147,7 @@ contract ONDelegate is ReentrancyGuard, Ownable {
      * Anyone would able to delegate to Orochi Network
      */
     function delegate(uint256 amount, uint256 lockDuration) external onlyWhitelist(msg.sender) {
-        // Delegate a givent amount of token
+        // Delegate a given amount of token
         _delegate(msg.sender, amount, lockDuration > 0 ? lockDuration : 180 days);
     }
 
