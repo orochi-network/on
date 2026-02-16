@@ -14,7 +14,7 @@ describe("ONDelegate", function () {
 
     // Deploy token
     const Token = await hre.ethers.getContractFactory("OrochiNetworkToken");
-    const token = await Token.deploy("Orochi Token", "ON");
+    const token = await Token.connect(owner).deploy("Orochi Token", "ON");
     await token.waitForDeployment();
 
     // Mint tokens
@@ -22,7 +22,7 @@ describe("ONDelegate", function () {
 
     // Deploy ONDelegate
     const ONDelegate = await hre.ethers.getContractFactory("ONDelegate");
-    const onDelegate = await ONDelegate.deploy(await token.getAddress());
+    const onDelegate = await ONDelegate.connect(owner).deploy(await token.getAddress());
     await onDelegate.waitForDeployment();
 
     // Transfer some tokens to delegators for testing
