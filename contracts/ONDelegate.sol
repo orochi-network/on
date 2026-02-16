@@ -140,7 +140,7 @@ contract ONDelegate is ReentrancyGuard, Ownable {
     }
 
     /*******************************************************
-     * External whitelisted delgator
+     * External whitelisted delegator
      ********************************************************/
 
     /**
