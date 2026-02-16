@@ -77,7 +77,7 @@ contract ONDelegate is ReentrancyGuard, Ownable {
     /**
      * Delegator can delegate their token to Orochi Network
      * @param delegator Address of delegator wallet
-     * @param amount Ammount to ON Token
+     * @param amount Amount to ON Token
      */
     function _delegate(address delegator, uint256 amount, uint256 lockDuration) internal {
         uint256 allowance = onToken.allowance(delegator, address(this));
