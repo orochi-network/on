@@ -152,7 +152,7 @@ contract ONDelegate is ReentrancyGuard, Ownable {
     }
 
     /**
-     * Quick method tho delegate all token of given address
+     * Quick method to delegate all token of given address
      */
     function delegateAll(uint256 lockDuration) external onlyWhitelist(msg.sender) {
         // Delegate all token of given delegator
