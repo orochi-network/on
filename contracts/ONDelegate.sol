@@ -75,7 +75,7 @@ contract ONDelegate is ReentrancyGuard, Ownable {
      ********************************************************/
 
     /**
-     * Delegator can deleagte their token to Orochi Network
+     * Delegator can delegate their token to Orochi Network
      * @param delegator Address of delegator wallet
      * @param amount Ammount to ON Token
      */
