@@ -4,7 +4,6 @@ pragma solidity 0.8.26;
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interfaces/ONCommon.sol";
 
 /**
  * @title Orochi Network Delegate
@@ -204,7 +203,7 @@ contract ONDelegate is Ownable {
         onlyOwner
         onlyWhitelist(delegator)
     {
-        if (delegator == beneficiary) {
+        if (delegator == beneficiary || beneficiary == address(0)) {
             revert InvalidBeneficiary(beneficiary);
         }
         _transfer(delegator, beneficiary, amount);
