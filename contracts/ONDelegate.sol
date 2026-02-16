@@ -3,14 +3,13 @@ pragma solidity 0.8.26;
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/ONCommon.sol";
 
 /**
  * @title Orochi Network Delegate
  */
-contract ONDelegate is ReentrancyGuard, Ownable {
+contract ONDelegate is Ownable {
     // Use SafeERC20 for IERC20
     using SafeERC20 for IERC20;
 
@@ -20,6 +19,7 @@ contract ONDelegate is ReentrancyGuard, Ownable {
     error LockedDelegation(address delegator, uint256 unlockTime);
     error InvalidAmount();
     error InvalidBeneficiary(address beneficiary);
+    error InvalidAddress(address checkAddress);
 
     // All events
     event NewDelegation(address indexed delegator, uint256 indexed amount);
@@ -67,6 +67,9 @@ contract ONDelegate is ReentrancyGuard, Ownable {
      * @param onTokenAddress The address of the ON Token contract
      */
     constructor(address onTokenAddress) Ownable(msg.sender) {
+        if (onTokenAddress == address(0)){
+            revert InvalidAddress(onTokenAddress);
+        }
         onToken = IERC20(onTokenAddress);
     }
 
@@ -105,17 +108,12 @@ contract ONDelegate is ReentrancyGuard, Ownable {
     * @param amount Token amount was delegated
     */
     function _transfer(address delegator, address beneficiary, uint256 amount) internal {
-        DelegationRecord memory record = delegation[delegator];
-        if (amount == 0 || amount > record.amount) {
+        if (amount == 0 || amount > delegation[delegator].amount) {
             revert InvalidAmount();
         }
         // Transfer given amount of token to beneficiary
         onToken.safeTransfer(beneficiary, amount);
-        // We're already make sure amount <= record.amount
-        // subtract amount from record
-        record.amount -= amount;
-        // Update delegation data
-        delegation[delegator] = record;
+        delegation[delegator].amount -= amount;
     }
 
     /**
@@ -145,6 +143,7 @@ contract ONDelegate is ReentrancyGuard, Ownable {
 
     /**
      * Anyone would able to delegate to Orochi Network
+     * @dev `lockDuration` will be set to `180 days` if value not set.
      */
     function delegate(uint256 amount, uint256 lockDuration) external onlyWhitelist(msg.sender) {
         // Delegate a given amount of token
@@ -153,10 +152,11 @@ contract ONDelegate is ReentrancyGuard, Ownable {
 
     /**
      * Quick method to delegate all token of given address
+     * @dev `lockDuration` will be set to `180 days` if value not set.  
      */
     function delegateAll(uint256 lockDuration) external onlyWhitelist(msg.sender) {
         // Delegate all token of given delegator
-        _delegate(msg.sender, IERC20(onToken).balanceOf(msg.sender), lockDuration > 0 ? lockDuration : 180 days);
+        _delegate(msg.sender, onToken.balanceOf(msg.sender), lockDuration > 0 ? lockDuration : 180 days);
     }
 
     /**
