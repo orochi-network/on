@@ -85,7 +85,7 @@ contract ONDelegate is ReentrancyGuard, Ownable {
         // an amount greater than zero
         // We're going to perform the delegation
         if (allowance >= amount && amount > 0) {
-            // Transefr the token to ONDelegate address
+            // Transfer the token to ONDelegate address
             onToken.safeTransferFrom(delegator, address(this), amount);
             // Increase delegated amount of delegator
             delegation[delegator].amount += amount;
