@@ -19,6 +19,7 @@ contract ONDelegate is Ownable {
     error InvalidAmount();
     error InvalidBeneficiary(address beneficiary);
     error InvalidAddress(address checkAddress);
+    error InvalidLockDuration(uint256 lockDuration);
 
     // All events
     event NewDelegation(address indexed delegator, uint256 indexed amount);
@@ -83,6 +84,10 @@ contract ONDelegate is Ownable {
      */
     function _delegate(address delegator, uint256 amount, uint256 lockDuration) internal {
         uint256 allowance = onToken.allowance(delegator, address(this));
+        // `lockDuration` can't greater than 365 days
+        if (lockDuration > 365 days){
+            revert InvalidLockDuration(lockDuration);
+        }
         // If allowance greater or equal to amount
         // an amount greater than zero
         // We're going to perform the delegation
@@ -94,10 +99,10 @@ contract ONDelegate is Ownable {
             delegation[delegator].unlockTime = uint64(block.timestamp + lockDuration);
             // Emit new event of success delegation
             emit NewDelegation(delegator, amount);
-            return;
+        } else {
+            // Token's delegator didn't delegate the token to ONDelegate
+            revert InvalidDelegatedAmount(delegator, allowance);
         }
-        // Token's delegator didn't delegate the token to ONDelegate
-        revert InvalidDelegatedAmount(delegator, allowance);
     }
 
     /*
