@@ -22,7 +22,10 @@ contract ONVault is Ownable, ReentrancyGuard, ONVaultInterface {
     // State variables
     address private user;
     uint256 private expireTime;
-    address private tokenAddress;
+
+    // Token address, default is ON Token on Ethereum mainnet
+    // https://etherscan.io/address/0x33f6BE84becfF45ea6aA2952d7eF890B44bFB59d
+    address private tokenAddress = address(0x33f6BE84becfF45ea6aA2952d7eF890B44bFB59d);
 
     // Access control modifier
     modifier onlyUser() {
