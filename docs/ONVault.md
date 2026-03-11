@@ -38,13 +38,15 @@ The User does not need to do anything during this phase.
 
 ### Step 3: Keeping the Vault Active
 
-Before the vault expires, the User can **reset the timer** — like renewing a lease. Each extension resets the expiry to the current time plus the chosen duration:
+The User can **extend the timer** at any time — like renewing a lease:
 
 - Minimum extension: **1 month**
 - Maximum extension: **12 months**
 - Can be extended **multiple times**
+- **While active**: the duration is added to the existing expiry date
+- **After expiry**: the duration is counted from the current time
 
-For example, if the User extends by 3 months, the vault will expire 3 months from now — regardless of when it was previously set to expire. As long as the User keeps extending, the vault stays active and the Owner can continue working.
+For example, if the vault expires in 30 days and the User extends by 3 months, the new expiry becomes 30 days + 3 months from now. If the vault already expired, the new expiry is 3 months from now.
 
 ### Step 4: What If Trust Breaks Down?
 
@@ -107,9 +109,9 @@ After the vault expires, the Owner is **fully locked out** — any attempt to ch
 
 1. The vault is deployed. The User's tokens are deposited. Expiry is set to 90 days from now.
 2. The Owner uses the vault to distribute tokens as part of business operations.
-3. Every few months, the User extends the vault — confirming they are happy with the Owner's work.
+3. The User periodically extends the vault — confirming they are happy with the Owner's work.
 4. If the User becomes unhappy or the Owner goes silent, the User simply **stops extending**.
-5. Once the 90-day expiry passes, the User withdraws all remaining tokens. No negotiation needed.
+5. Once the expiry passes, the User withdraws all remaining tokens. No negotiation needed.
 
 ## Summary
 
@@ -118,6 +120,6 @@ After the vault expires, the Owner is **fully locked out** — any attempt to ch
 | What does ONVault hold? | ERC-20 tokens (default: ON Token, changeable by Owner) |
 | Who controls day-to-day operations? | The Owner (multisig wallet) |
 | Who has the ultimate safety net? | The User (can withdraw after expiry) |
-| How long until expiry? | 90 days from deployment (extendable by the User) |
+| How long until expiry? | 90 days from deployment (extendable by the User, 1–12 months per extension) |
 | Can the Owner prevent withdrawal after expiry? | **No.** This is enforced by the blockchain. |
 | Is the code audited and open source? | The contract uses industry-standard OpenZeppelin libraries and is licensed under Apache-2.0 |

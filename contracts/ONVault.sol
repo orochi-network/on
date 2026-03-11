@@ -25,7 +25,8 @@ contract ONVault is Ownable, ReentrancyGuard, ONVaultInterface {
 
     // Token address, default is ON Token on Ethereum mainnet
     // https://etherscan.io/address/0x33f6BE84becfF45ea6aA2952d7eF890B44bFB59d
-    address private tokenAddress = address(0x33f6BE84becfF45ea6aA2952d7eF890B44bFB59d);
+    address private tokenAddress =
+        address(0x33f6BE84becfF45ea6aA2952d7eF890B44bFB59d);
 
     // Access control modifiers
     modifier onlyUser() {
@@ -46,7 +47,10 @@ contract ONVault is Ownable, ReentrancyGuard, ONVaultInterface {
      * @param ownerAddress Multisig wallet address (owner)
      * @param userAddress User who can trigger emergency / extend time
      */
-    constructor(address ownerAddress, address userAddress) Ownable(ownerAddress) {
+    constructor(
+        address ownerAddress,
+        address userAddress
+    ) Ownable(ownerAddress) {
         if (userAddress == address(0)) {
             revert InvalidAddress(userAddress);
         }
@@ -88,7 +92,10 @@ contract ONVault is Ownable, ReentrancyGuard, ONVaultInterface {
      * @param to Recipient address
      * @param value Amount to transfer
      */
-    function transfer(address to, uint256 value) external onlyOwner onlyNotExpired nonReentrant {
+    function transfer(
+        address to,
+        uint256 value
+    ) external onlyOwner onlyNotExpired nonReentrant {
         if (to == address(0)) {
             revert InvalidBeneficiary(to);
         }
@@ -108,7 +115,10 @@ contract ONVault is Ownable, ReentrancyGuard, ONVaultInterface {
      * @param _tokenAddress Token to withdraw (can differ from active token for recovery)
      * @param beneficiary Address to receive the funds
      */
-    function emergency(address _tokenAddress, address beneficiary) external onlyUser nonReentrant {
+    function emergency(
+        address _tokenAddress,
+        address beneficiary
+    ) external onlyUser nonReentrant {
         if (block.timestamp <= expireTime) {
             revert NotExpired(expireTime, block.timestamp);
         }
@@ -137,7 +147,11 @@ contract ONVault is Ownable, ReentrancyGuard, ONVaultInterface {
         if (duration < MIN_EXTEND_DURATION || duration > MAX_EXTEND_DURATION) {
             revert InvalidDuration(duration);
         }
-        expireTime = block.timestamp + duration;
+        // If contract is expired, we will extend from current time
+        // If contract isn't expired we will extend from contract time
+        expireTime =
+            ((block.timestamp > expireTime) ? block.timestamp : expireTime) +
+            duration;
         emit ExpireTimeExtended(expireTime);
     }
 
