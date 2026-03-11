@@ -38,13 +38,13 @@ The User does not need to do anything during this phase.
 
 ### Step 3: Keeping the Vault Active
 
-Before the vault expires, the User can **extend the timer** — like renewing a lease:
+Before the vault expires, the User can **reset the timer** — like renewing a lease. Each extension resets the expiry to the current time plus the chosen duration:
 
 - Minimum extension: **1 month**
 - Maximum extension: **12 months**
 - Can be extended **multiple times**
 
-As long as the User keeps extending, the vault stays active and the Owner can continue working.
+For example, if the User extends by 3 months, the vault will expire 3 months from now — regardless of when it was previously set to expire. As long as the User keeps extending, the vault stays active and the Owner can continue working.
 
 ### Step 4: What If Trust Breaks Down?
 

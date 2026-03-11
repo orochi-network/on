@@ -137,7 +137,7 @@ contract ONVault is Ownable, ReentrancyGuard, ONVaultInterface {
         if (duration < MIN_EXTEND_DURATION || duration > MAX_EXTEND_DURATION) {
             revert InvalidDuration(duration);
         }
-        expireTime = expireTime + duration;
+        expireTime = block.timestamp + duration;
         emit ExpireTimeExtended(expireTime);
     }
 

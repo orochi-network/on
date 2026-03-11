@@ -221,20 +221,24 @@ describe("ONVault", function () {
   describe("User: extendExpireTime", function () {
     it("Should allow user to extend expire time by 1 month", async function () {
       const { vault, user } = await loadFixture(deployVaultFixture);
-      const expireBefore = await vault.getExpireTime();
-      await expect(vault.connect(user).extendExpireTime(ONE_MONTH))
-        .to.emit(vault, "ExpireTimeExtended")
-        .withArgs(expireBefore + ONE_MONTH);
-      expect(await vault.getExpireTime()).to.equal(expireBefore + ONE_MONTH);
+      await vault.connect(user).extendExpireTime(ONE_MONTH);
+      const latestBlock = await hre.ethers.provider.getBlock("latest");
+      const newExpireTime = await vault.getExpireTime();
+      expect(newExpireTime).to.be.closeTo(
+        BigInt(latestBlock!.timestamp) + ONE_MONTH,
+        10n
+      );
     });
 
     it("Should allow user to extend expire time by 12 months", async function () {
       const { vault, user } = await loadFixture(deployVaultFixture);
-      const expireBefore = await vault.getExpireTime();
-      await expect(vault.connect(user).extendExpireTime(ONE_YEAR))
-        .to.emit(vault, "ExpireTimeExtended")
-        .withArgs(expireBefore + ONE_YEAR);
-      expect(await vault.getExpireTime()).to.equal(expireBefore + ONE_YEAR);
+      await vault.connect(user).extendExpireTime(ONE_YEAR);
+      const latestBlock = await hre.ethers.provider.getBlock("latest");
+      const newExpireTime = await vault.getExpireTime();
+      expect(newExpireTime).to.be.closeTo(
+        BigInt(latestBlock!.timestamp) + ONE_YEAR,
+        10n
+      );
     });
 
     it("Should revert if duration is less than 30 days", async function () {
@@ -258,13 +262,20 @@ describe("ONVault", function () {
       ).to.be.revertedWithCustomError(vault, "InvalidUser");
     });
 
-    it("Should allow multiple extensions", async function () {
+    it("Should reset expire time from current time on each extension", async function () {
       const { vault, user } = await loadFixture(deployVaultFixture);
-      const expireBefore = await vault.getExpireTime();
+      // First extension
       await vault.connect(user).extendExpireTime(ONE_MONTH);
+      // Fast forward 15 days
+      const expireAfterFirst = await vault.getExpireTime();
+      await time.increaseTo(expireAfterFirst - ONE_DAY * 15n);
+      // Second extension resets from current time
       await vault.connect(user).extendExpireTime(ONE_MONTH);
-      expect(await vault.getExpireTime()).to.equal(
-        expireBefore + ONE_MONTH * 2n
+      const latestBlock = await hre.ethers.provider.getBlock("latest");
+      const newExpireTime = await vault.getExpireTime();
+      expect(newExpireTime).to.be.closeTo(
+        BigInt(latestBlock!.timestamp) + ONE_MONTH,
+        10n
       );
     });
   });
