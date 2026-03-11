@@ -43,6 +43,9 @@ contract ONVault is Ownable, ReentrancyGuard, ONVaultInterface {
         if (userAddress == address(0)) {
             revert InvalidAddress(userAddress);
         }
+        if (ownerAddress == userAddress) {
+            revert InvalidOwnerAndUser(ownerAddress, userAddress);
+        }
         user = userAddress;
         expireTime = block.timestamp + 90 days;
     }

@@ -79,6 +79,15 @@ describe("ONVault", function () {
       ).to.be.revertedWithCustomError(ONVault, "InvalidAddress");
     });
 
+    it("Should revert if owner and user are the same address", async function () {
+      const [owner]: Signer[] = await hre.ethers.getSigners();
+      const ONVault = await hre.ethers.getContractFactory("ONVault");
+      const addr = await owner.getAddress();
+      await expect(
+        ONVault.deploy(addr, addr)
+      ).to.be.revertedWithCustomError(ONVault, "InvalidOwnerAndUser");
+    });
+
     it("Should reject native token deposits", async function () {
       const { vault, owner } = await loadFixture(deployVaultFixture);
       await expect(
