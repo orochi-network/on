@@ -2,6 +2,7 @@ import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { parseEther, Signer, ZeroAddress } from "ethers";
 import hre from "hardhat";
+import { DEPLOYED_ADDRESS } from "../deployed/deployed";
 
 const ONE_DAY = BigInt(24 * 60 * 60);
 const ONE_MONTH = ONE_DAY * 30n;
@@ -55,9 +56,11 @@ describe("ONVault", function () {
       );
     });
 
-    it("Should have no token set initially", async function () {
+    it("Should have default token set to ON Token", async function () {
       const { vault } = await loadFixture(deployVaultFixture);
-      expect(await vault.getTokenAddress()).to.equal(ZeroAddress);
+      expect(await vault.getTokenAddress()).to.equal(
+        DEPLOYED_ADDRESS.onToken.address
+      );
     });
 
     it("Should revert if owner address is zero", async function () {
@@ -129,14 +132,15 @@ describe("ONVault", function () {
       expect(await token.balanceOf(beneficiaryAddr)).to.equal(amount);
     });
 
-    it("Should revert if token not set", async function () {
+    it("Should revert if transfer with default token that has no balance on test chain", async function () {
       const { vault, owner, beneficiary } =
         await loadFixture(deployVaultFixture);
+      // Default token (ON Token mainnet address) does not exist on the test chain
       await expect(
         vault
           .connect(owner)
           .transfer(await beneficiary.getAddress(), parseEther("100"))
-      ).to.be.revertedWithCustomError(vault, "TokenNotSet");
+      ).to.be.reverted;
     });
 
     it("Should revert if recipient is zero address", async function () {
