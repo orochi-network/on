@@ -70,13 +70,15 @@ If the User **stops extending the timer**, the vault will eventually expire. Onc
 
 ## Who Can Do What?
 
-| Action | Owner | User |
+| Action | Owner (before expiry) | User |
 |---|:---:|:---:|
 | Change which token the vault operates with | Yes | — |
 | Send tokens to recipients | Yes | — |
 | Extend the expiration date | — | Yes |
 | Withdraw all funds (after expiry only) | — | Yes |
 | View vault information | Yes | Yes |
+
+After the vault expires, the Owner is **fully locked out** — they can no longer change the token or send tokens.
 
 ## Safety Guarantees
 
@@ -88,7 +90,7 @@ If the User **stops extending the timer**, the vault will eventually expire. Onc
 
 ### For the Owner
 
-- **Full operational control.** During the vault's active period, you can freely manage which tokens the vault works with and where they are sent.
+- **Full operational control before expiry.** During the vault's active period, you can freely manage which tokens the vault works with and where they are sent. After expiry, all Owner actions are blocked.
 - **Multisig protection.** The Owner role is designed for a multisig wallet (a wallet that requires multiple people to approve each action), reducing the risk of unauthorized access.
 
 ### Built-in Protections
@@ -96,7 +98,7 @@ If the User **stops extending the timer**, the vault will eventually expire. Onc
 | Protection | What it means |
 |---|---|
 | **Two-role system** | Owner and User must be different addresses and have completely separate abilities — neither can perform the other's actions |
-| **Automatic expiration** | The vault expires in 90 days by default, ensuring the User always has a recovery path |
+| **Automatic expiration** | The vault expires in 90 days by default. After expiry, the Owner is locked out and the User can withdraw all funds |
 | **Attack prevention** | Industry-standard security measures protect against common blockchain exploits |
 | **No accidental deposits** | The vault only accepts approved tokens, not raw cryptocurrency like ETH or BNB |
 | **All actions are recorded** | Every operation emits a public event on the blockchain for full transparency and auditability |

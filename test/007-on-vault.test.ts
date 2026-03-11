@@ -85,7 +85,7 @@ describe("ONVault", function () {
       const addr = await owner.getAddress();
       await expect(
         ONVault.deploy(addr, addr)
-      ).to.be.revertedWithCustomError(ONVault, "InvalidOwnerAndUser");
+      ).to.be.revertedWithCustomError(ONVault, "InvalidAddress");
     });
 
     it("Should reject native token deposits", async function () {
@@ -122,6 +122,15 @@ describe("ONVault", function () {
         vault.connect(user).setToken(await token.getAddress())
       ).to.be.revertedWithCustomError(vault, "OwnableUnauthorizedAccount");
     });
+
+    it("Should revert if vault has expired", async function () {
+      const { vault, token, owner } = await loadFixture(deployVaultFixture);
+      const expireTime = await vault.getExpireTime();
+      await time.increaseTo(expireTime + 1n);
+      await expect(
+        vault.connect(owner).setToken(await token.getAddress())
+      ).to.be.revertedWithCustomError(vault, "NotExpired");
+    });
   });
 
   describe("Owner: transfer", function () {
@@ -149,7 +158,7 @@ describe("ONVault", function () {
         vault
           .connect(owner)
           .transfer(await beneficiary.getAddress(), parseEther("100"))
-      ).to.be.reverted;
+      ).to.be.revertedWithCustomError(vault, "SafeERC20FailedOperation");
     });
 
     it("Should revert if recipient is zero address", async function () {
@@ -178,6 +187,19 @@ describe("ONVault", function () {
           .connect(user)
           .transfer(await beneficiary.getAddress(), parseEther("100"))
       ).to.be.revertedWithCustomError(vault, "OwnableUnauthorizedAccount");
+    });
+
+    it("Should revert if vault has expired", async function () {
+      const { vault, token, owner, beneficiary } =
+        await loadFixture(deployVaultFixture);
+      await vault.connect(owner).setToken(await token.getAddress());
+      const expireTime = await vault.getExpireTime();
+      await time.increaseTo(expireTime + 1n);
+      await expect(
+        vault
+          .connect(owner)
+          .transfer(await beneficiary.getAddress(), parseEther("100"))
+      ).to.be.revertedWithCustomError(vault, "NotExpired");
     });
   });
 
@@ -247,10 +269,12 @@ describe("ONVault", function () {
     });
 
     it("Should allow user to emergency withdraw ERC20 after expiry", async function () {
-      const { vault, token, user, beneficiary } =
+      const { vault, token, owner, user, beneficiary } =
         await loadFixture(deployVaultFixture);
       const tokenAddr = await token.getAddress();
       const beneficiaryAddr = await beneficiary.getAddress();
+
+      await vault.connect(owner).setToken(tokenAddr);
 
       // Fast forward past expiry
       const expireTime = await vault.getExpireTime();
@@ -315,7 +339,10 @@ describe("ONVault", function () {
       await expect(
         emptyVault
           .connect(user2)
-          .emergency(await token2.getAddress(), await beneficiary2.getAddress())
+          .emergency(
+            await token2.getAddress(),
+            await beneficiary2.getAddress()
+          )
       ).to.be.revertedWithCustomError(emptyVault, "InvalidAmount");
     });
 

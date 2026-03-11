@@ -27,10 +27,17 @@ contract ONVault is Ownable, ReentrancyGuard, ONVaultInterface {
     // https://etherscan.io/address/0x33f6BE84becfF45ea6aA2952d7eF890B44bFB59d
     address private tokenAddress = address(0x33f6BE84becfF45ea6aA2952d7eF890B44bFB59d);
 
-    // Access control modifier
+    // Access control modifiers
     modifier onlyUser() {
         if (msg.sender != user) {
             revert InvalidUser(msg.sender);
+        }
+        _;
+    }
+
+    modifier onlyNotExpired() {
+        if (block.timestamp > expireTime) {
+            revert NotExpired(expireTime, block.timestamp);
         }
         _;
     }
@@ -44,7 +51,7 @@ contract ONVault is Ownable, ReentrancyGuard, ONVaultInterface {
             revert InvalidAddress(userAddress);
         }
         if (ownerAddress == userAddress) {
-            revert InvalidOwnerAndUser(ownerAddress, userAddress);
+            revert InvalidAddress(userAddress);
         }
         user = userAddress;
         expireTime = block.timestamp + 90 days;
@@ -58,7 +65,7 @@ contract ONVault is Ownable, ReentrancyGuard, ONVaultInterface {
      * @dev Set the active token address
      * @param _tokenAddress Token address to set
      */
-    function setToken(address _tokenAddress) external onlyOwner {
+    function setToken(address _tokenAddress) external onlyOwner onlyNotExpired {
         if (_tokenAddress == address(0)) {
             revert InvalidTokenAddress(_tokenAddress);
         }
@@ -71,10 +78,7 @@ contract ONVault is Ownable, ReentrancyGuard, ONVaultInterface {
      * @param to Recipient address
      * @param value Amount to transfer
      */
-    function transfer(address to, uint256 value) external onlyOwner nonReentrant {
-        if (tokenAddress == address(0)) {
-            revert TokenNotSet();
-        }
+    function transfer(address to, uint256 value) external onlyOwner onlyNotExpired nonReentrant {
         if (to == address(0)) {
             revert InvalidBeneficiary(to);
         }
