@@ -219,22 +219,47 @@ describe("ONVault", function () {
   });
 
   describe("User: extendExpireTime", function () {
-    it("Should allow user to extend expire time by 1 month", async function () {
+    it("Should add duration to existing expire time if not expired", async function () {
       const { vault, user } = await loadFixture(deployVaultFixture);
       const expireBefore = await vault.getExpireTime();
-      await expect(vault.connect(user).extendExpireTime(ONE_MONTH))
-        .to.emit(vault, "ExpireTimeExtended")
-        .withArgs(expireBefore + ONE_MONTH);
+      await vault.connect(user).extendExpireTime(ONE_MONTH);
       expect(await vault.getExpireTime()).to.equal(expireBefore + ONE_MONTH);
     });
 
-    it("Should allow user to extend expire time by 12 months", async function () {
+    it("Should allow multiple extensions while active", async function () {
       const { vault, user } = await loadFixture(deployVaultFixture);
       const expireBefore = await vault.getExpireTime();
-      await expect(vault.connect(user).extendExpireTime(ONE_YEAR))
-        .to.emit(vault, "ExpireTimeExtended")
-        .withArgs(expireBefore + ONE_YEAR);
-      expect(await vault.getExpireTime()).to.equal(expireBefore + ONE_YEAR);
+      await vault.connect(user).extendExpireTime(ONE_MONTH);
+      await vault.connect(user).extendExpireTime(ONE_MONTH);
+      expect(await vault.getExpireTime()).to.equal(
+        expireBefore + ONE_MONTH * 2n
+      );
+    });
+
+    it("Should extend from current time if vault is expired", async function () {
+      const { vault, user } = await loadFixture(deployVaultFixture);
+      const expireTime = await vault.getExpireTime();
+      await time.increaseTo(expireTime + 1n);
+
+      await vault.connect(user).extendExpireTime(ONE_MONTH);
+      const latestBlock = await hre.ethers.provider.getBlock("latest");
+      expect(await vault.getExpireTime()).to.be.closeTo(
+        BigInt(latestBlock!.timestamp) + ONE_MONTH,
+        10n
+      );
+    });
+
+    it("Should extend by 12 months after expiry", async function () {
+      const { vault, user } = await loadFixture(deployVaultFixture);
+      const expireTime = await vault.getExpireTime();
+      await time.increaseTo(expireTime + 1n);
+
+      await vault.connect(user).extendExpireTime(ONE_YEAR);
+      const latestBlock = await hre.ethers.provider.getBlock("latest");
+      expect(await vault.getExpireTime()).to.be.closeTo(
+        BigInt(latestBlock!.timestamp) + ONE_YEAR,
+        10n
+      );
     });
 
     it("Should revert if duration is less than 30 days", async function () {
@@ -256,16 +281,6 @@ describe("ONVault", function () {
       await expect(
         vault.connect(owner).extendExpireTime(ONE_MONTH)
       ).to.be.revertedWithCustomError(vault, "InvalidUser");
-    });
-
-    it("Should allow multiple extensions", async function () {
-      const { vault, user } = await loadFixture(deployVaultFixture);
-      const expireBefore = await vault.getExpireTime();
-      await vault.connect(user).extendExpireTime(ONE_MONTH);
-      await vault.connect(user).extendExpireTime(ONE_MONTH);
-      expect(await vault.getExpireTime()).to.equal(
-        expireBefore + ONE_MONTH * 2n
-      );
     });
   });
 
