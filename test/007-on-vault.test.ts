@@ -85,7 +85,7 @@ describe("ONVault", function () {
       const addr = await owner.getAddress();
       await expect(
         ONVault.deploy(addr, addr)
-      ).to.be.revertedWithCustomError(ONVault, "InvalidAddress");
+      ).to.be.revertedWithCustomError(ONVault, "InvalidOwnerAndUser");
     });
 
     it("Should reject native token deposits", async function () {
@@ -96,6 +96,21 @@ describe("ONVault", function () {
           value: parseEther("1"),
         })
       ).to.be.reverted;
+    });
+  });
+
+  describe("Owner: transferOwnership", function () {
+    it("Should allow owner to transfer ownership to a different address", async function () {
+      const { vault, owner, other } = await loadFixture(deployVaultFixture);
+      await vault.connect(owner).transferOwnership(await other.getAddress());
+      expect(await vault.owner()).to.equal(await other.getAddress());
+    });
+
+    it("Should revert if owner transfers ownership to user", async function () {
+      const { vault, owner, user } = await loadFixture(deployVaultFixture);
+      await expect(
+        vault.connect(owner).transferOwnership(await user.getAddress())
+      ).to.be.revertedWithCustomError(vault, "InvalidOwnerAndUser");
     });
   });
 
@@ -129,7 +144,7 @@ describe("ONVault", function () {
       await time.increaseTo(expireTime + 1n);
       await expect(
         vault.connect(owner).setToken(await token.getAddress())
-      ).to.be.revertedWithCustomError(vault, "NotExpired");
+      ).to.be.revertedWithCustomError(vault, "ExpiredContract");
     });
   });
 
@@ -199,7 +214,7 @@ describe("ONVault", function () {
         vault
           .connect(owner)
           .transfer(await beneficiary.getAddress(), parseEther("100"))
-      ).to.be.revertedWithCustomError(vault, "NotExpired");
+      ).to.be.revertedWithCustomError(vault, "ExpiredContract");
     });
   });
 

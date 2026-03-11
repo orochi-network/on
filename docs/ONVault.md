@@ -17,7 +17,7 @@ Neither party can override the other's rights. The rules are enforced by code on
 
 When the vault is created, three things happen automatically:
 
-- The **Owner** and **User** addresses are locked in (they must be different addresses)
+- The **Owner** and **User** addresses are locked in (they must be different addresses, otherwise the contract rejects deployment)
 - The default token is set to **ON Token** ([0x33f6...59d](https://etherscan.io/address/0x33f6BE84becfF45ea6aA2952d7eF890B44bFB59d))
 - A **90-day expiration timer** starts counting down
 
@@ -78,7 +78,7 @@ If the User **stops extending the timer**, the vault will eventually expire. Onc
 | Withdraw all funds (after expiry only) | — | Yes |
 | View vault information | Yes | Yes |
 
-After the vault expires, the Owner is **fully locked out** — they can no longer change the token or send tokens.
+After the vault expires, the Owner is **fully locked out** — any attempt to change the token or send tokens will be rejected by the contract.
 
 ## Safety Guarantees
 
@@ -97,7 +97,7 @@ After the vault expires, the Owner is **fully locked out** — they can no longe
 
 | Protection | What it means |
 |---|---|
-| **Two-role system** | Owner and User must be different addresses and have completely separate abilities — neither can perform the other's actions |
+| **Two-role system** | Owner and User must be different addresses and have completely separate abilities — neither can perform the other's actions. The Owner cannot transfer ownership to the User. |
 | **Automatic expiration** | The vault expires in 90 days by default. After expiry, the Owner is locked out and the User can withdraw all funds |
 | **Attack prevention** | Industry-standard security measures protect against common blockchain exploits |
 | **No accidental deposits** | The vault only accepts approved tokens, not raw cryptocurrency like ETH or BNB |

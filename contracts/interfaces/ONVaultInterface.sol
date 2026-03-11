@@ -14,6 +14,8 @@ interface ONVaultInterface {
     error NotExpired(uint256 expireTime, uint256 currentTime);
     error InvalidDuration(uint256 duration);
     error InvalidAddress(address addr);
+    error InvalidOwnerAndUser(address ownerAddress, address userAddress);
+    error ExpiredContract(uint256 expireTime, uint256 currentTime);
 
     // Events
     event TokenSet(address indexed tokenAddress);

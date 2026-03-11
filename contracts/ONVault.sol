@@ -37,7 +37,7 @@ contract ONVault is Ownable, ReentrancyGuard, ONVaultInterface {
 
     modifier onlyNotExpired() {
         if (block.timestamp > expireTime) {
-            revert NotExpired(expireTime, block.timestamp);
+            revert ExpiredContract(expireTime, block.timestamp);
         }
         _;
     }
@@ -51,10 +51,20 @@ contract ONVault is Ownable, ReentrancyGuard, ONVaultInterface {
             revert InvalidAddress(userAddress);
         }
         if (ownerAddress == userAddress) {
-            revert InvalidAddress(userAddress);
+            revert InvalidOwnerAndUser(ownerAddress, userAddress);
         }
         user = userAddress;
         expireTime = block.timestamp + 90 days;
+    }
+
+    /**
+     * @dev Override to prevent transferring ownership to the user address
+     */
+    function transferOwnership(address newOwner) public override onlyOwner {
+        if (newOwner == user) {
+            revert InvalidOwnerAndUser(newOwner, user);
+        }
+        super.transferOwnership(newOwner);
     }
 
     /*******************************************************
