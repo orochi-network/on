@@ -1,17 +1,29 @@
+# Self-contained PR checks for ON.
+#
+# ON is a PUBLIC repo, and GitHub blocks a public repo from calling a PRIVATE
+# reusable workflow (orochi-network/actions is private) — the call resolves to
+# "workflow was not found". So the SSH signature check is inlined here, with the
+# allowed-signers fetched from the public orochi-network/dev-off repo, and the
+# checksum verified directly (mirrors `yarn verify`) with no dependency install.
+#
+# NOTE: `yarn test` is intentionally NOT run here yet. The hardhat tasks load
+# the private `@orochi-network/rwallet` dependency, which 404s on public npm and
+# needs the org NPM read token — and a public repo's CI cannot read that token
+# by default. To enable tests in CI: grant `on` access to ON_NPM_ACCESS_TOKEN_RO
+# (or publish @orochi-network/rwallet), then add a job with setup-node + npm auth
+# + `yarn install` + `yarn test`.
 name: 'Verify pull request'
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-  check-gpg:
-    runs-on: [self-hosted, linux]
-
+  verify:
+    runs-on: orochi-runners
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,33 +33,31 @@ jobs:
       - name: Fetch main branch
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
 
-      - name: Import allowed GPG key list
+      - name: Checkout allowed signers from dev-off
+        uses: actions/checkout@v4
+        with:
+          repository: orochi-network/dev-off
+          ref: main
+          sparse-checkout: ssh-allowed-signers
+          sparse-checkout-cone-mode: false
+          path: .dev-off
+
+      - name: Check commit signatures (SSH)
         run: |
-          mkdir -p ~/.gnupg
-          chmod 700 ~/.gnupg
-
-          echo "${{ secrets.GPG_ALLOW_LIST }}" | base64 -d > allow-list.asc
-
-          gpg --import allow-list.asc
-          gpg --list-keys --with-colons | awk -F: '/^fpr:/ { print $10 }' > .gpg-list.txt
-
-      - name: Check commit signatures
-        run: |
+          git config gpg.format ssh
+          git config gpg.ssh.allowedSignersFile "$GITHUB_WORKSPACE/.dev-off/ssh-allowed-signers"
           COMMITS=$(git rev-list ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
           for COMMIT in $COMMITS; do
             SIG=$(git log --format='%G?' -n 1 "$COMMIT")
             echo "Commit $COMMIT signature type: $SIG"
-
-            if [[ "$SIG" != "G" && "$SIG" != "U" && "$SIG" != "Y" && "$SIG" != "R" && "$SIG" != "S" ]]; then
-              echo "Commit $COMMIT is not signed!"
+            # Only a "G" means a valid SSH signature from a key listed in
+            # dev-off/ssh-allowed-signers. Anything else (E = unknown signer,
+            # N = unsigned, B = bad) fails the check.
+            if [[ "$SIG" != "G" ]]; then
+              echo "Commit $COMMIT is not signed by an allowed SSH key!"
               exit 1
             fi
           done
-      - name: Install dependencies
-        run: yarn install
 
       - name: Check sha256 checksum
-        run: yarn verify
-
-      - name: Run test
-        run: yarn test
+        run: sha256sum -c checksum.sha256
