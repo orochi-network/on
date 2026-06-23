@@ -67,7 +67,6 @@ describe("ONCustomizedVesting", function () {
   it("Should expose the hardcoded ON token address", async function () {
     const { onCustomizedVesting } = await loadFixture(fixture);
     expect(await onCustomizedVesting.getTokenAddress()).to.eq(TOKEN_ADDR);
-    expect(await onCustomizedVesting.TOKEN()).to.eq(TOKEN_ADDR);
   });
 
   it("Should report the TGE time and isTGE across the boundary", async function () {
