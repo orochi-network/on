@@ -7,5 +7,6 @@ declare namespace NodeJS {
     KMS_WALLET_ADDRESS_BNB: string;
     ETHER_SCAN_API: string;
     RPC_BNB: string;
+    WALLET_PASSPHRASE: string;
   }
 }
